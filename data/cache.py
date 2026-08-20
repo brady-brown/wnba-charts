@@ -40,6 +40,72 @@ def save_to_cache(df: pd.DataFrame, name: str, **kwargs) -> None:
     print(f"[cache] SAVED — {key} ({len(df)} rows)")
 
 
+# ---------------------------------------------------------------------------
+# Talking to the league API
+# ---------------------------------------------------------------------------
+# stats.nba.com answers a laptop far more reliably than it answers a data
+# centre: a real share of requests from cloud IP ranges simply never come back.
+# From a laptop that reads as an occasional hang worth re-running by hand. In
+# an unattended nightly it is the ordinary case, and it used to be invisible —
+# callers caught the exception, logged a warning, and carried on with an empty
+# frame, so a build that fetched nothing reported success.
+#
+# Hence: retry with backoff, a timeout with room to breathe, and a distinct
+# exception on the way out. ApiUnavailable means "the league did not answer",
+# which is NOT "the league answered, and the answer is empty". Collapsing those
+# two is the difference between a broken nightly and a season that simply has
+# not reached the playoffs yet, and every caller here must keep them apart.
+
+API_TIMEOUT = 60          # nba_api defaults to 30, which cloud IPs regularly blow through
+API_RETRIES = 5
+API_BACKOFF = 3.0         # seconds before the first retry, doubling after
+API_PAUSE = 0.6           # courtesy gap ahead of every attempt
+
+
+class ApiUnavailable(BaseException):
+    """
+    The endpoint did not answer, after retries. Never means 'no data'.
+
+    Deliberately derived from BaseException rather than Exception, for the same
+    reason KeyboardInterrupt is: nothing may absorb it. This pipeline is built
+    out of stages that catch broadly and carry on — a game whose play-by-play
+    will not parse should not kill a thirty-season build, and a season with no
+    playoffs yet should not either. Every one of those handlers reads
+    `except Exception`, and every one of them would have quietly swallowed a
+    dead API and produced an empty, successful-looking build.
+
+    Making the type unswallowable fixes all of them at once, and keeps them
+    fixed: a handler added later cannot reintroduce the bug by accident.
+    """
+
+
+def _api_call(build, what: str, retries: int = API_RETRIES):
+    """
+    Call one nba_api endpoint, retrying transient failures.
+
+    `build` takes a timeout and returns the constructed endpoint object —
+    nba_api issues the request inside __init__, so constructing IS the call.
+    """
+    import requests
+
+    delay = API_BACKOFF
+    for attempt in range(1, retries + 1):
+        time.sleep(API_PAUSE)
+        try:
+            return build(API_TIMEOUT)
+        except (requests.exceptions.RequestException, TimeoutError, OSError) as e:
+            if attempt == retries:
+                raise ApiUnavailable(
+                    f"{what}: no response after {retries} attempts "
+                    f"({type(e).__name__}: {str(e)[:80]})"
+                ) from e
+            print(f"[api] {what}: {type(e).__name__} on attempt "
+                  f"{attempt}/{retries} — retrying in {delay:.0f}s")
+            time.sleep(delay)
+            delay *= 2
+    raise AssertionError("unreachable")
+
+
 def get_shot_chart(
     season: str,
     player_id: int = 0,
@@ -70,15 +136,17 @@ def get_shot_chart(
             return cached
 
     print(f"[api] Fetching shot chart — season={season}, player_id={player_id} ...")
-    time.sleep(0.6)
-
-    sc = shotchartdetail.ShotChartDetail(
-        team_id=team_id,
-        player_id=player_id,
-        league_id="10",
-        season_nullable=season,
-        season_type_all_star=season_type,
-        context_measure_simple="FGA",
+    sc = _api_call(
+        lambda t: shotchartdetail.ShotChartDetail(
+            team_id=team_id,
+            player_id=player_id,
+            league_id="10",
+            season_nullable=season,
+            season_type_all_star=season_type,
+            context_measure_simple="FGA",
+            timeout=t,
+        ),
+        what=f"shot chart {season} {season_type}",
     )
     df = sc.get_data_frames()[0]
     save_to_cache(df, "shot_chart", **kwargs)
@@ -99,12 +167,14 @@ def get_player_index(season: str = "2024", force_refresh: bool = False) -> pd.Da
             return cached
 
     print(f"[api] Fetching player index — season={season} ...")
-    time.sleep(0.6)
-
-    players = commonallplayers.CommonAllPlayers(
-        league_id="10",
-        season=season,
-        is_only_current_season=0,
+    players = _api_call(
+        lambda t: commonallplayers.CommonAllPlayers(
+            league_id="10",
+            season=season,
+            is_only_current_season=0,
+            timeout=t,
+        ),
+        what=f"player index {season}",
     )
     df = players.get_data_frames()[0]
     save_to_cache(df, "player_index", **kwargs)
@@ -157,13 +227,16 @@ def get_player_feed(
 
     print(f"[api] Fetching player stats — season={season}, mode={per_mode}, "
           f"measure={measure_type} ...")
-    time.sleep(0.6)
-    stats = leaguedashplayerstats.LeagueDashPlayerStats(
-        league_id_nullable="10",
-        season=season,
-        season_type_all_star=season_type,
-        per_mode_detailed=per_mode,
-        measure_type_detailed_defense=measure_type,
+    stats = _api_call(
+        lambda t: leaguedashplayerstats.LeagueDashPlayerStats(
+            league_id_nullable="10",
+            season=season,
+            season_type_all_star=season_type,
+            per_mode_detailed=per_mode,
+            measure_type_detailed_defense=measure_type,
+            timeout=t,
+        ),
+        what=f"player stats {season} {season_type} {per_mode}/{measure_type}",
     )
     df = stats.get_data_frames()[0]
     save_to_cache(df, "player_stats", **kwargs)
@@ -198,11 +271,14 @@ def get_game_ids(
                 continue
 
         print(f"[api] Fetching game IDs — season={season} ...")
-        time.sleep(0.6)
-        finder = leaguegamefinder.LeagueGameFinder(
-            league_id_nullable="10",
-            season_nullable=season,
-            season_type_nullable=season_type,
+        finder = _api_call(
+            lambda t: leaguegamefinder.LeagueGameFinder(
+                league_id_nullable="10",
+                season_nullable=season,
+                season_type_nullable=season_type,
+                timeout=t,
+            ),
+            what=f"game ids {season} {season_type}",
         )
         df = (
             finder.get_data_frames()[0][["GAME_ID", "GAME_DATE", "MATCHUP"]]
@@ -226,8 +302,10 @@ def get_pbp(game_id: str, force_refresh: bool = False) -> pd.DataFrame:
             return cached
 
     print(f"[api] Fetching PBP — game_id={game_id} ...")
-    time.sleep(0.6)
-    pbp = playbyplayv2.PlayByPlayV2(game_id=game_id)
+    pbp = _api_call(
+        lambda t: playbyplayv2.PlayByPlayV2(game_id=game_id, timeout=t),
+        what=f"pbp {game_id}",
+    )
     df = pbp.get_data_frames()[0]
     save_to_cache(df, "pbp", **kwargs)
     return df
@@ -250,8 +328,10 @@ def get_box_score(game_id: str, force_refresh: bool = False) -> pd.DataFrame:
             return cached
 
     print(f"[api] Fetching box score — game_id={game_id} ...")
-    time.sleep(0.6)
-    box = boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id)
+    box = _api_call(
+        lambda t: boxscoretraditionalv2.BoxScoreTraditionalV2(game_id=game_id, timeout=t),
+        what=f"box score {game_id}",
+    )
     df = box.get_data_frames()[0]
     save_to_cache(df, "box_score", **kwargs)
     return df
@@ -296,8 +376,10 @@ def get_game_rotation(game_id: str, force_refresh: bool = False) -> pd.DataFrame
             return _label_home_away(cached, game_id)
 
     print(f"[api] Fetching rotation — game_id={game_id} ...")
-    time.sleep(0.6)
-    rot = gamerotation.GameRotation(game_id=game_id, league_id="10")
+    rot = _api_call(
+        lambda t: gamerotation.GameRotation(game_id=game_id, league_id="10", timeout=t),
+        what=f"rotation {game_id}",
+    )
     # get_data_frames() returns [AwayTeam, HomeTeam].
     away_df = rot.get_data_frames()[0].copy()
     home_df = rot.get_data_frames()[1].copy()
@@ -326,13 +408,16 @@ def get_team_ratings(
             return cached
 
     print(f"[api] Fetching team ratings — season={season} ...")
-    time.sleep(0.6)
-    stats = leaguedashteamstats.LeagueDashTeamStats(
-        league_id_nullable="10",
-        season=season,
-        season_type_all_star=season_type,
-        per_mode_detailed="PerGame",
-        measure_type_detailed_defense="Advanced",
+    stats = _api_call(
+        lambda t: leaguedashteamstats.LeagueDashTeamStats(
+            league_id_nullable="10",
+            season=season,
+            season_type_all_star=season_type,
+            per_mode_detailed="PerGame",
+            measure_type_detailed_defense="Advanced",
+            timeout=t,
+        ),
+        what=f"team ratings {season} {season_type}",
     )
     df = stats.get_data_frames()[0]
     cols = ["TEAM_ID", "TEAM_NAME", "GP", "W", "L", "OFF_RATING", "DEF_RATING", "NET_RATING", "PACE"]
@@ -357,12 +442,14 @@ def get_player_game_log(
             return cached
 
     print(f"[api] Fetching game log — player_id={player_id}, season={season} ...")
-    time.sleep(0.6)
-
-    log = playergamelog.PlayerGameLog(
-        player_id=player_id,
-        season=season,
-        league_id="10",
+    log = _api_call(
+        lambda t: playergamelog.PlayerGameLog(
+            player_id=player_id,
+            season=season,
+            league_id="10",
+            timeout=t,
+        ),
+        what=f"game log {player_id} {season}",
     )
     df = log.get_data_frames()[0]
     save_to_cache(df, "player_game_log", **kwargs)

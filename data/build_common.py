@@ -33,14 +33,13 @@ from __future__ import annotations
 import json
 import os
 import re
-import time
 from datetime import date
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from data.cache import CACHE_DIR, _cache_key, get_game_ids
+from data.cache import CACHE_DIR, _api_call, _cache_key, get_game_ids
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -170,7 +169,7 @@ def _identity_from_pbp(season: str, max_games: int = 40) -> dict[int, dict]:
     return out
 
 
-def _conferences(season: str, pause: float = 0.7) -> dict[int, str]:
+def _conferences(season: str) -> dict[int, str]:
     """
     team_id -> "East"/"West" for one season.
 
@@ -182,17 +181,17 @@ def _conferences(season: str, pause: float = 0.7) -> dict[int, str]:
 
     out: dict[int, str] = {}
     for conf in ("East", "West"):
-        try:
-            time.sleep(pause)
-            df = leaguedashteamstats.LeagueDashTeamStats(
+        # Retries and the unswallowable-on-failure rule live in data.cache; a
+        # conference lookup that times out must not come back as "this
+        # franchise has no conference" and get written to the team map.
+        df = _api_call(
+            lambda t, conf=conf: leaguedashteamstats.LeagueDashTeamStats(
                 league_id_nullable="10", season=season,
                 conference_nullable=conf, per_mode_detailed="PerGame",
-                timeout=60,
-            ).get_data_frames()[0]
-        except Exception as e:
-            print(f"  [warn] {season} {conf} conference lookup failed: "
-                  f"{type(e).__name__}: {str(e)[:60]}")
-            continue
+                timeout=t,
+            ),
+            what=f"conference split {season} {conf}",
+        ).get_data_frames()[0]
         for tid in df["TEAM_ID"]:
             out[int(tid)] = conf
     return out

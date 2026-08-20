@@ -46,7 +46,7 @@ from data.nightly import ALPHA
 RAPM_SUMMARY = Path("data/rapm_out/rapm_summary.csv")
 
 # JSON.parse rejects all three; Python's json module accepts all three.
-BAD_LITERALS = re.compile(r"\b(NaN|-?Infinity)\b")
+BAD_LITERALS = re.compile(r"(?<![\w.\"])(NaN|-?Infinity)(?![\w.])")
 
 
 class Failed(Exception):

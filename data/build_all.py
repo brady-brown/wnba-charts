@@ -41,10 +41,21 @@ def _pbp_cached(game_id: str) -> bool:
 
 
 def season_game_ids(season: str, season_type: str) -> list[str]:
+    """
+    The schedule for one season and type, or [] if the league played none.
+
+    [] means the league answered and had nothing to report — 1997 had no
+    play-in, a season in progress has no playoffs yet. It must never mean the
+    request failed: an empty schedule builds an empty season, writes no
+    parquet, and reports success, which is indistinguishable from a healthy
+    quiet night. data.cache.ApiUnavailable is deliberately not an Exception,
+    so the handler below cannot absorb one.
+    """
     try:
         df = get_game_ids(season, season_type=season_type)
     except Exception as e:
-        print(f"  [warn] {season} {season_type}: game ids unavailable ({e})")
+        print(f"  [warn] {season} {season_type}: game ids unusable "
+              f"({type(e).__name__}: {str(e)[:70]})")
         return []
     if df.empty:
         return []
@@ -163,7 +174,17 @@ def main() -> None:
         return
 
     if not summary:
+        # Silence here used to be a successful exit. For an unattended run
+        # asking for one named season that is the worst possible answer: the
+        # season exists, the league played, and the build produced nothing —
+        # exactly what a dead API looks like from the outside. An explicit
+        # --season that yields nothing is a failure; a bare full-history run
+        # finding nothing new is not.
         print("\nnothing built")
+        if args.seasons:
+            raise SystemExit(
+                f"nothing built for {', '.join(args.seasons)} — the seasons were "
+                f"named explicitly, so an empty build is a failure, not a quiet night")
         return
 
     s = pd.DataFrame(summary)
