@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -156,12 +157,23 @@ def main() -> None:
     s = pd.DataFrame(summary)
     s.to_csv(out_dir / "rapm_summary.csv", index=False)
 
-    combined = pd.concat(
-        [pd.read_csv(p) for p in sorted(glob.glob(str(out_dir / "rapm_*_*.csv")))
-         if "summary" not in p and "alpha" not in p],
-        ignore_index=True,
-    )
+    # Match rapm_{4-digit season}_{type}.csv and nothing else. The old glob was
+    # rapm_*_*.csv minus "summary" and "alpha", which still matched
+    # rapm_all_seasons.csv — so every run concatenated the previous run's
+    # aggregate into the new one and the file grew by a full copy of every
+    # season each time. It had reached 44,238 rows for 4,923 real ones.
+    #
+    # Nothing reads this file, which is exactly why it went unnoticed for so
+    # long; under a nightly it would have grown ~5k rows a day forever.
+    per_season = [
+        path for path in sorted(glob.glob(str(out_dir / "rapm_*_*.csv")))
+        if re.fullmatch(r"rapm_\d{4}_\w+", Path(path).stem)
+    ]
+    combined = pd.concat([pd.read_csv(path) for path in per_season],
+                         ignore_index=True)
     combined.to_csv(out_dir / "rapm_all_seasons.csv", index=False)
+    print(f"  rapm_all_seasons.csv: {len(combined):,} rows "
+          f"from {len(per_season)} season files")
 
     print("=" * 66)
     print("RAPM BUILD SUMMARY")
