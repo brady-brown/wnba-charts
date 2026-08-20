@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LaunchAgent for scripts/nightly.sh.
+
+  06:00 America/Chicago, May through October.
+
+  * 06:00 local is 07:00 ET. The latest WNBA tip is 22:00 ET, so every game on
+    the slate has been final for hours.
+  * StartCalendarInterval has no month range, so the six playing months are
+    listed one dict each. November through April the league does not play, and
+    a run then would fail its own staleness gate every morning.
+  * launchd fires a missed calendar job once on the next wake, so a closed lid
+    at 06:00 delays the run rather than skipping the night.
+
+  Install:
+    cp scripts/com.bradybrown.wnba-nightly.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.bradybrown.wnba-nightly.plist
+
+  Run it now, without waiting for 06:00:
+    launchctl kickstart -p gui/$UID/com.bradybrown.wnba-nightly
+
+  Remove:
+    launchctl bootout gui/$UID/com.bradybrown.wnba-nightly
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.bradybrown.wnba-nightly</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/bradybrown/Documents/projects/wnba/scripts/nightly.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/bradybrown/Documents/projects/wnba</string>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Month</key><integer>5</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>6</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>7</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>8</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>9</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Month</key><integer>10</integer><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
+
+  <!-- The script writes its own timestamped log; these two catch anything that
+       escapes it, which is where a launchd-only failure (bad path, permissions)
+       would otherwise vanish silently. -->
+  <key>StandardOutPath</key>
+  <string>/Users/bradybrown/Library/Logs/wnba-nightly.launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/bradybrown/Library/Logs/wnba-nightly.launchd.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
