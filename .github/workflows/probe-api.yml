@@ -1,0 +1,49 @@
+# Diagnostic: what can a GitHub-hosted runner actually reach?
+#
+# The nightly job's fetch stage times out against stats.nba.com on every
+# attempt, which looks like flakiness and behaves like a block. This probe
+# separates the two, and checks whether the CDN feeds — served from a normal
+# CDN rather than the stats host — answer where the stats host does not.
+#
+# Manual only. Delete once the answer stops changing.
+name: probe-api
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Probe each host
+        run: |
+          probe() {
+            printf '%-58s ' "$1"
+            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 25 \
+                     -H 'User-Agent: Mozilla/5.0' \
+                     -H 'Referer: https://www.wnba.com/' \
+                     -H 'Origin: https://www.wnba.com' \
+                     "$2" 2>/dev/null) || code="TIMEOUT/RESET"
+            echo "$code  ($(wc -c < /tmp/body) bytes)"
+          }
+
+          probe "stats.nba.com  LeagueGameFinder (WNBA)" \
+            "https://stats.nba.com/stats/leaguegamefinder?LeagueID=10&Season=2026&SeasonType=Regular+Season&PlayerOrTeam=T"
+          probe "stats.nba.com  scoreboardv2" \
+            "https://stats.nba.com/stats/scoreboardv2?GameDate=2026-08-19&LeagueID=10&DayOffset=0"
+          probe "stats.wnba.com scoreboardv2" \
+            "https://stats.wnba.com/stats/scoreboardv2?GameDate=2026-08-19&LeagueID=10&DayOffset=0"
+          probe "cdn.wnba.com   liveData scoreboard" \
+            "https://cdn.wnba.com/static/json/liveData/scoreboard/todaysScoreboard_10.json"
+          probe "cdn.wnba.com   liveData playbyplay" \
+            "https://cdn.wnba.com/static/json/liveData/playbyplay/playbyplay_1022600250.json"
+          probe "data.wnba.com  schedule" \
+            "https://data.wnba.com/data/10s/v2015/json/mobile_teams/wnba/2026/league/10_full_schedule.json"
+          probe "www.wnba.com   (control: is egress working at all)" \
+            "https://www.wnba.com/"
+
+          echo
+          echo "--- runner egress IP ---"
+          curl -s --max-time 15 https://api.ipify.org || echo "(unavailable)"
+          echo
