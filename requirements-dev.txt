@@ -1,0 +1,15 @@
+-r requirements.txt
+
+# Notebook + exploratory work only. None of it runs in the nightly job, so it
+# stays out of requirements.txt to keep CI installs small.
+ipykernel==7.2.0
+itables==2.8.0
+jupyter-client==8.8.0
+matplotlib==3.10.9
+plotly==6.7.0
+
+# archetypes.py only. Not currently installed in the local venv either — the
+# clustering was last run against an older environment, so these are unpinned
+# rather than pinned to a version nobody has verified against Python 3.14.
+hdbscan
+umap-learn

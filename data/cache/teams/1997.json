@@ -1,0 +1,66 @@
+{
+ "CHA": {
+  "abbr": "CHA",
+  "city": "Charlotte",
+  "conf": "East",
+  "id": 1611661314,
+  "name": "Charlotte Sting",
+  "slug": "charlotte-sting"
+ },
+ "CLE": {
+  "abbr": "CLE",
+  "city": "Cleveland",
+  "conf": "East",
+  "id": 1611661315,
+  "name": "Cleveland Rockers",
+  "slug": "cleveland-rockers"
+ },
+ "HOU": {
+  "abbr": "HOU",
+  "city": "Houston",
+  "conf": "West",
+  "id": 1611661316,
+  "name": "Houston Comets",
+  "slug": "houston-comets"
+ },
+ "LAS": {
+  "abbr": "LAS",
+  "city": "Los Angeles",
+  "conf": "West",
+  "id": 1611661320,
+  "name": "Los Angeles Sparks",
+  "slug": "los-angeles-sparks"
+ },
+ "NYL": {
+  "abbr": "NYL",
+  "city": "New York",
+  "conf": "East",
+  "id": 1611661313,
+  "name": "New York Liberty",
+  "slug": "new-york-liberty"
+ },
+ "PHO": {
+  "abbr": "PHO",
+  "city": "Phoenix",
+  "conf": "West",
+  "id": 1611661317,
+  "name": "Phoenix Mercury",
+  "slug": "phoenix-mercury"
+ },
+ "SAC": {
+  "abbr": "SAC",
+  "city": "Sacramento",
+  "conf": "West",
+  "id": 1611661318,
+  "name": "Sacramento Monarchs",
+  "slug": "sacramento-monarchs"
+ },
+ "UTA": {
+  "abbr": "UTA",
+  "city": "Utah",
+  "conf": "West",
+  "id": 1611661319,
+  "name": "Utah Starzz",
+  "slug": "utah-starzz"
+ }
+}

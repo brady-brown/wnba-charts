@@ -1,0 +1,11 @@
+# Runtime dependencies for the data pipeline and the site build.
+# Pinned: the nightly job re-runs this chain unattended, and a silent minor
+# bump in pandas or scikit-learn would move published RAPM numbers without a
+# single line of this repo changing.
+nba_api==1.11.4
+numpy==2.4.6
+pandas==3.0.3
+pyarrow==24.0.0
+requests==2.34.2
+scikit-learn==1.8.0
+scipy==1.17.1

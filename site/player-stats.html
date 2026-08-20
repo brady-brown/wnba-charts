@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Player Stats &amp; RAPM | WNBA Charts</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#F8FAFC">
+  <style>
+    .tbl-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; white-space: nowrap; }
+    thead th {
+      background: var(--card2); color: var(--muted);
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+      padding: 10px 12px; border-bottom: 1px solid var(--line);
+      cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 1;
+    }
+    thead th:hover { color: var(--ink); }
+    thead th.sort-asc::after  { content: " ↑"; color: var(--t1); }
+    thead th.sort-desc::after { content: " ↓"; color: var(--t1); }
+    @media (max-width: 700px) {
+      #ps-table thead th:nth-child(-n+3), #ps-table tbody td:nth-child(-n+3) {
+        position: sticky; z-index: 2; background: var(--bg); }
+      #ps-table thead th:nth-child(-n+3) { z-index: 4; background: var(--card2); }
+      #ps-table th:nth-child(1), #ps-table td:nth-child(1) { left: 0;   min-width: 28px; }
+      #ps-table th:nth-child(2), #ps-table td:nth-child(2) { left: 28px; min-width: 30px; }
+      #ps-table th:nth-child(3), #ps-table td:nth-child(3) { left: 58px; box-shadow: 1px 0 0 var(--line); }
+      #ps-table td.player-name { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+    }
+    tbody tr { border-bottom: 1px solid var(--line2); cursor: pointer; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--card2); }
+    tbody td { padding: 8px 12px; vertical-align: middle; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.rk  { color: var(--muted); text-align: right; }
+    td.player-name { font-weight: 700; }
+    .pos { color: var(--pos); font-weight: 700; }
+    .neg { color: var(--neg); font-weight: 700; }
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tabs button {
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      font-size: .95rem; font-weight: 700; color: var(--muted); padding: 10px 18px;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s;
+    }
+    .tabs button:hover { color: var(--ink); }
+    .tabs button.active { color: var(--ink); border-bottom-color: var(--t1); }
+    .grp-tabs { margin: 14px 0 4px; }
+    .grp-tabs button { font-size: .82rem; padding: 6px 12px; }
+    .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+    .filters .form-group { flex: 1; min-width: 130px; }
+    .filters .form-group.narrow { flex: 0 0 120px; }
+    .count-label { color: var(--muted); font-size: 0.8rem; margin-bottom: 12px; }
+    .disp-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px;
+      overflow: hidden; background: var(--card); }
+    .disp-toggle button {
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      font-size: .78rem; font-weight: 600; color: var(--muted); padding: 5px 12px;
+    }
+    .disp-toggle button.active { background: var(--t1); color: #fff; }
+    /* Stat filter builder — stack conditions like "PTS >= 20" or "RAPM >= 80th %ile" */
+    .sf-wrap { margin: 4px 0 14px; }
+    .sf-head { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+    .sf-head .lbl { font-size: 0.82rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .04em; }
+    .sf-add {
+      background: var(--card); border: 1px dashed var(--line); color: var(--t1);
+      border-radius: 8px; padding: 4px 12px; font-family: inherit; font-size: .8rem;
+      font-weight: 600; cursor: pointer;
+    }
+    .sf-add:hover { border-color: var(--t1); border-style: solid; }
+    .sf-clear { background: none; border: none; color: var(--muted); cursor: pointer;
+      font-family: inherit; font-size: .78rem; text-decoration: underline; }
+    .sf-clear:hover { color: var(--neg); }
+    .stat-filter-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; max-width: 620px; }
+    .stat-filter-row .sf-stat { flex: 1; min-width: 0; }
+    .stat-filter-row .sf-op   { flex: 0 0 108px; }
+    .stat-filter-row .sf-val  { flex: 0 0 96px; }
+    .stat-filter-row select, .stat-filter-row input { padding: 7px 10px; font-size: .85rem; }
+    .sf-remove {
+      flex: 0 0 30px; height: 30px; border-radius: 8px; cursor: pointer;
+      background: var(--card); border: 1px solid var(--line); color: var(--muted);
+      font-size: .8rem; line-height: 1;
+    }
+    .sf-remove:hover { color: var(--neg); border-color: var(--neg); }
+
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">WNBA Charts</a>
+</nav>
+
+<div class="container">
+
+  <h2>Player Stats &amp; RAPM</h2>
+  <p class="page-sub">
+    Box score, per-100 rates and on/off splits for every WNBA player, plus
+    <strong>RAPM</strong> (Regularized Adjusted Plus-Minus) — each player's effect on net
+    efficiency per 100 possessions, independent of the box score, solved across every
+    lineup combination and adjusted for teammates and opponents.
+    Click any column to sort, or any row for a full player card.
+  </p>
+
+  <div class="tabs" id="scope-tabs"></div>
+  <div style="border-bottom:1px solid var(--line);margin-bottom:18px"></div>
+
+  <div class="filters">
+    <div class="form-group narrow">
+      <label for="season-sel">Season</label>
+      <select id="season-sel"></select>
+    </div>
+    <div class="form-group">
+      <label for="search">Search player or team</label>
+      <input type="text" id="search" placeholder="e.g. Wilson or Aces">
+    </div>
+    <div class="form-group">
+      <label for="conf-sel">Conference</label>
+      <select id="conf-sel"><option value="">All conferences</option></select>
+    </div>
+    <div class="form-group">
+      <label for="team-sel">Team</label>
+      <select id="team-sel"><option value="">All teams</option></select>
+    </div>
+    <div class="form-group narrow">
+      <label for="min-mpg" title="Hide players below this many minutes per game">Min MPG</label>
+      <input type="number" id="min-mpg" value="15" min="0" max="40" step="1">
+    </div>
+    <div class="form-group narrow">
+      <label for="min-gp" title="Hide players below this many games played">Min GP</label>
+      <input type="number" id="min-gp" value="0" min="0" max="44" step="5">
+    </div>
+  </div>
+
+  <div class="sf-wrap">
+    <div class="sf-head">
+      <span class="lbl">Stat filters</span>
+      <button type="button" class="sf-add" id="sf-add">+ Add filter</button>
+      <button type="button" class="sf-clear" id="sf-clear">Clear all</button>
+    </div>
+    <div id="stat-filters"></div>
+  </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div class="tabs grp-tabs" id="grp-tabs"></div>
+    <div class="disp-toggle">
+      <button id="disp-val" class="active" onclick="setDisplay('val')">Values</button>
+      <button id="disp-pct" onclick="setDisplay('pct')">Percentile</button>
+    </div>
+  </div>
+  <div class="count-label" id="count-label"></div>
+
+  <div class="tbl-wrap">
+    <table id="ps-table">
+      <thead id="ps-head"></thead>
+      <tbody id="ps-body"></tbody>
+    </table>
+  </div>
+
+  <p class="caption" id="footer-cap" style="margin-top:10px"></p>
+  <p class="caption" id="note"></p>
+  <hr>
+  <p class="caption">WNBA analytics. Data via the league's public play-by-play feed.</p>
+
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/percentile.js"></script>
+<script src="js/zone-chart.js"></script>
+<script src="js/court.js"></script>
+<script src="js/player-card.js"></script>
+<script>
+// Every rate below is computed from play-by-play against the exact lineup on
+// the floor, not from a minutes-share estimate — hence the wording.
+const TOOLTIPS = {
+  usg:  "Usage rate: share of her team's used possessions that were hers, measured over the possessions she was actually on the floor for.",
+  fg:   "Field goal percentage, from season totals.",
+  fg3:  "Three-point percentage, from season totals.",
+  ft:   "Free throw percentage, from season totals.",
+  fga:  "Field goal attempts per game.",
+  fgm:  "Field goals made per game.",
+  fg3a: "Three-point attempts per game.",
+  fg3m: "Threes made per game.",
+  fta:  "Free throw attempts per game.",
+  ftm:  "Free throws made per game.",
+  efg:  "Effective FG%: field goal % adjusted for threes being worth more.",
+  ts:   "True Shooting %: points per shooting possession, including free throws.",
+  par3: "3-point attempt rate: share of field goal attempts taken from three.",
+  ftr:  "Free throw rate: FTA per FGA.",
+  tovp: "Turnover rate: turnovers per 100 possessions she used.",
+  astp: "Assist %: share of teammate field goals she assisted while on the floor.",
+  orbp: "Offensive rebound %: her offensive boards over every one available while she was on the floor.",
+  drbp: "Defensive rebound %: her defensive boards over every one available while she was on the floor.",
+  trbp: "Total rebound % while on the floor.",
+  stlp: "Steal %: opponent possessions she ended with a steal, over the possessions she defended.",
+  blkp: "Block %: opponent two-point attempts she blocked while on the floor.",
+  oreb: "Offensive rebounds per game.",
+  dreb: "Defensive rebounds per game.",
+  pf:   "Personal fouls per game. Technicals are excluded, as in the official box score.",
+  poss: "Possessions on the floor in the scope you are viewing.",
+  rposs: "Regular-season possessions behind the RAPM fit. RAPM is unstable in small samples.",
+  stocks100: "Steals plus blocks per 100 possessions.",
+  on_o:  "Team points scored per 100 possessions with the player on the floor.",
+  on_d:  "Team points allowed per 100 possessions with the player on the floor.",
+  on:    "On-court net rating (raw, not opponent-adjusted).",
+  off_o: "Team points scored per 100 possessions with the player off the floor.",
+  off_d: "Team points allowed per 100 possessions with the player off the floor.",
+  off:   "Off-court net rating (raw, not opponent-adjusted).",
+  onoff: "On minus Off: how much better the team's raw net rating is with the player on the floor.",
+  orapm: "Offensive RAPM: effect on team points scored per 100, adjusted for teammates and opponents.",
+  drapm: "Defensive RAPM: effect on team points allowed per 100. Higher is better.",
+  rapm:  "Total RAPM = Offensive + Defensive, vs. an average player.",
+};
+
+const IDENT = [
+  { key: "_rk", label: "#" },
+  { key: "n", label: "Player", dir: "asc" },
+  { key: "ta", label: "Team", dir: "asc" },
+];
+// Column groups mirror the NBA site's Box / Shooting / Advanced / Impact tabs,
+// re-cut for what the WNBA export actually ships: there is no position, height
+// or per-possession rebounding feed, but there are per-100 rates and full
+// on/off splits, so those get tabs of their own.
+const GROUPS = {
+  box: { label: "Box", sort: "pts", cols: [
+    { key: "gp",   label: "GP",  dir: "desc", d: 0 },
+    { key: "min",  label: "MPG", dir: "desc", d: 1 },
+    { key: "pts",  label: "PTS", dir: "desc", d: 1, bold: true },
+    { key: "reb",  label: "REB", dir: "desc", d: 1 },
+    { key: "oreb", label: "OR",  dir: "desc", d: 1 },
+    { key: "dreb", label: "DR",  dir: "desc", d: 1 },
+    { key: "ast",  label: "AST", dir: "desc", d: 1 },
+    { key: "stl",  label: "STL", dir: "desc", d: 1 },
+    { key: "blk",  label: "BLK", dir: "desc", d: 1 },
+    { key: "tov",  label: "TOV", dir: "asc",  d: 1 },
+    { key: "pf",   label: "PF",  dir: "asc",  d: 1 },
+  ]},
+  shooting: { label: "Shooting", sort: "ts", cols: [
+    { key: "fgm",  label: "FGM",  dir: "desc", d: 1 },
+    { key: "fga",  label: "FGA",  dir: "desc", d: 1 },
+    { key: "fg",   label: "FG%",  dir: "desc", d: 1 },
+    { key: "fg3m", label: "3PM",  dir: "desc", d: 1 },
+    { key: "fg3a", label: "3PA",  dir: "desc", d: 1 },
+    { key: "fg3",  label: "3P%",  dir: "desc", d: 1 },
+    { key: "ftm",  label: "FTM",  dir: "desc", d: 1 },
+    { key: "fta",  label: "FTA",  dir: "desc", d: 1 },
+    { key: "ft",   label: "FT%",  dir: "desc", d: 1 },
+    { key: "efg",  label: "eFG%", dir: "desc", d: 1 },
+    { key: "ts",   label: "TS%",  dir: "desc", d: 1, bold: true },
+    { key: "par3", label: "3PAr", dir: "desc", d: 1 },
+    { key: "ftr",  label: "FTr",  dir: "desc", d: 1 },
+  ]},
+  advanced: { label: "Advanced", sort: "usg", cols: [
+    { key: "usg",  label: "USG%", dir: "desc", d: 1, bold: true },
+    { key: "tovp", label: "TOV%", dir: "asc",  d: 1 },
+    { key: "astp", label: "AST%", dir: "desc", d: 1 },
+    { key: "orbp", label: "ORB%", dir: "desc", d: 1 },
+    { key: "drbp", label: "DRB%", dir: "desc", d: 1 },
+    { key: "trbp", label: "REB%", dir: "desc", d: 1 },
+    { key: "stlp", label: "STL%", dir: "desc", d: 1 },
+    { key: "blkp", label: "BLK%", dir: "desc", d: 1 },
+  ]},
+  per100: { label: "Per 100", sort: "pts100", cols: [
+    { key: "poss",      label: "Poss",   dir: "desc", d: 0 },
+    { key: "pts100",    label: "PTS",    dir: "desc", d: 1, bold: true },
+    { key: "reb100",    label: "REB",    dir: "desc", d: 1 },
+    { key: "ast100",    label: "AST",    dir: "desc", d: 1 },
+    { key: "stl100",    label: "STL",    dir: "desc", d: 1 },
+    { key: "blk100",    label: "BLK",    dir: "desc", d: 1 },
+    { key: "tov100",    label: "TOV",    dir: "asc",  d: 1 },
+    { key: "stocks100", label: "STOCKS", dir: "desc", d: 1 },
+    { key: "usg",       label: "USG%",   dir: "desc", d: 1 },
+  ]},
+  onoff: { label: "On / Off", sort: "onoff", cols: [
+    { key: "poss",  label: "Poss",     dir: "desc", d: 0 },
+    { key: "on_o",  label: "On ORtg",  dir: "desc", d: 1 },
+    { key: "on_d",  label: "On DRtg",  dir: "asc",  d: 1 },
+    { key: "on",    label: "On Net",   dir: "desc", d: 1, signed: true },
+    { key: "off_o", label: "Off ORtg", dir: "desc", d: 1 },
+    { key: "off_d", label: "Off DRtg", dir: "asc",  d: 1 },
+    { key: "off",   label: "Off Net",  dir: "desc", d: 1, signed: true },
+    { key: "onoff", label: "On–Off",   dir: "desc", d: 1, signed: true, bold: true },
+  ]},
+  impact: { label: "RAPM / Impact", sort: "rapm", cols: [
+    { key: "rposs", label: "RS Poss", dir: "desc", d: 0 },
+    { key: "orapm", label: "Off",     dir: "desc", d: 2, signed: true },
+    { key: "drapm", label: "Def",     dir: "desc", d: 2, signed: true },
+    { key: "rapm",  label: "Total",   dir: "desc", d: 2, signed: true, bold: true },
+    { key: "onoff", label: "On–Off",  dir: "desc", d: 1, signed: true },
+    { key: "usg",   label: "USG%",    dir: "desc", d: 1 },
+  ]},
+};
+
+// Stat filter builder. Percentile ops rank a player within the CURRENTLY
+// FILTERED pool, so "top 10% of the East" means what you'd expect after you've
+// already filtered to the East.
+const STAT_FILTER_GROUPS = [
+  ["Box",      [["gp","GP"],["min","MPG"],["pts","PTS"],["reb","REB"],["oreb","OREB"],
+                ["dreb","DREB"],["ast","AST"],["stl","STL"],["blk","BLK"],
+                ["tov","TOV"],["pf","PF"]]],
+  ["Shooting", [["fg","FG%"],["fg3","3P%"],["ft","FT%"],["efg","eFG%"],["ts","TS%"],
+                ["par3","3PAr"],["ftr","FTr"],["fga","FGA"],["fg3a","3PA"],["fta","FTA"]]],
+  ["Advanced", [["usg","USG%"],["tovp","TOV%"],["astp","AST%"],["orbp","ORB%"],
+                ["drbp","DRB%"],["trbp","REB%"],["stlp","STL%"],["blkp","BLK%"]]],
+  ["Per 100",  [["pts100","PTS/100"],["reb100","REB/100"],["ast100","AST/100"],
+                ["stl100","STL/100"],["blk100","BLK/100"],["tov100","TOV/100"],
+                ["stocks100","STOCKS/100"],["poss","Poss"]]],
+  ["On / Off", [["on","On Net"],["on_o","On ORtg"],["on_d","On DRtg"],
+                ["off","Off Net"],["onoff","On-Off"]]],
+  ["Impact",   [["rapm","RAPM"],["orapm","Off RAPM"],["drapm","Def RAPM"],
+                ["rposs","RS Poss"]]],
+];
+const SF_OPTIONS_HTML = `<option value="">Stat…</option>` + STAT_FILTER_GROUPS.map(
+  ([grp, opts]) => `<option disabled>── ${grp} ──</option>` +
+    opts.map(([k, l]) => `<option value="${k}">${l}</option>`).join("")).join("");
+const isPctOp = op => op === "pge" || op === "ple";
+// Unlike the NBA export, WNBA shooting percentages already ship as 0-100
+// (fg: 51.8, not 0.518), so a typed "45" needs no rescaling before comparison.
+
+// ── Percentile mode ────────────────────────────────────────────────────────
+// Pools are built from the FULL scope (not the filtered rows), so a percentile
+// means "vs every qualified player", stable as you filter. Counting/context
+// stats are excluded — a GP percentile is meaningless. So are the off-court
+// splits: those describe the team without the player, not the player.
+const LOWER_BETTER = new Set(["tov", "tov100", "tovp", "pf", "on_d"]);
+const PCT_EXCLUDE  = new Set(["gp", "min", "poss", "rposs", "off_o", "off_d", "off"]);
+// The WNBA plays a 40-44 game season, so the NBA site's 15 GP floor is scaled down.
+const PCT_MIN_GP = 10, PCT_MIN_MPG = 12;
+const pctQualified = r => (r.gp ?? 0) >= PCT_MIN_GP && (r.min ?? 0) >= PCT_MIN_MPG;
+const POOLS = {};                          // `${season}|${scope}` -> pools
+let curDisplay = "val";
+
+function pctKeys() {
+  const k = new Set();
+  Object.values(GROUPS).forEach(g => g.cols.forEach(c => {
+    if (!PCT_EXCLUDE.has(c.key) && !c.key.startsWith("_")) k.add(c.key);
+  }));
+  return [...k];
+}
+function ensurePools() {
+  const key = `${SEASON}|${curScope}`;
+  if (!POOLS[key]) POOLS[key] = Percentile.buildPools(allRows, pctKeys(), pctQualified);
+  return POOLS[key];
+}
+const pctFor = (key, val) =>
+  Percentile.rank(ensurePools()[key], val, !LOWER_BETTER.has(key));
+
+function setDisplay(mode) {
+  if (mode === curDisplay) return;
+  curDisplay = mode;
+  document.getElementById("disp-val").classList.toggle("active", mode === "val");
+  document.getElementById("disp-pct").classList.toggle("active", mode === "pct");
+  render();
+}
+
+let allRows = [], META = null, ALPHA = null;
+let sortCol = "pts", sortDir = "desc";
+let SEASON = null, curScope = "reg", curGroup = "box";
+let handlersBound = false, _currentRows = [];
+const RENDER_CHUNK = 60;
+let _rendered = 0, _io = null;
+
+function activeCols() { return [...IDENT, ...GROUPS[curGroup].cols]; }
+
+async function init() {
+  const seasons = await loadSeasons();
+  const sSel = document.getElementById("season-sel");
+  if (!seasons.length) {
+    document.getElementById("count-label").textContent = "No seasons found.";
+    return;
+  }
+  SEASON = seasons[0];
+  fillSeasonSelect(sSel, seasons, SEASON);
+  sSel.addEventListener("change", () => { SEASON = sSel.value; reload(); });
+
+  const st = document.getElementById("scope-tabs");
+  SCOPES.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = s.label;
+    b.className = s.key === curScope ? "active" : "";
+    b.onclick = () => setScope(s.key, b);
+    st.appendChild(b);
+  });
+  const gt = document.getElementById("grp-tabs");
+  Object.entries(GROUPS).forEach(([k, g]) => {
+    const b = document.createElement("button");
+    b.textContent = g.label;
+    b.className = k === curGroup ? "active" : "";
+    b.onclick = () => setGroup(k, b);
+    gt.appendChild(b);
+  });
+  buildNote();
+  await reload();
+}
+
+function setScope(key, btn) {
+  if (key === curScope) return;
+  curScope = key;
+  [...document.getElementById("scope-tabs").children].forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  reload();
+}
+
+function setGroup(key, btn) {
+  if (key === curGroup) return;
+  curGroup = key;
+  [...document.getElementById("grp-tabs").children].forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  // Re-anchor the sort on the new group's headline column, so switching tabs
+  // never leaves the table sorted by a column that is no longer shown.
+  if (!activeCols().some(c => c.key === sortCol)) {
+    sortCol = GROUPS[key].sort; sortDir = "desc";
+  }
+  renderHead(); render();
+}
+
+// Stats and impact are separate fetches on purpose: the table paints from
+// player-stats.json without waiting on RAPM, which is then merged in by id.
+// player-impact.json is regular season only and is merged into every scope —
+// its fields are namespaced (rapm/rposs) so they can never overwrite the
+// scope's own possessions or on/off.
+async function reload() {
+  document.getElementById("count-label").textContent = "Loading…";
+  const [stats, impact] = await Promise.all([
+    loadJSON(`data/${SEASON}/player-stats${scopeSuffix(curScope)}.json`),
+    loadJSON(`data/${SEASON}/player-impact.json`),
+  ]);
+  if (!stats?.players) {
+    document.getElementById("count-label").textContent = "Player stats not found for this scope.";
+    document.getElementById("ps-body").innerHTML = "";
+    document.getElementById("footer-cap").textContent = "";
+    return;
+  }
+
+  const byId = {};
+  if (impact?.players) for (const p of impact.players) byId[p.id] = p;
+  allRows = stats.players.map(p => ({ ...p, ...(byId[p.id] || {}) }));
+  META = stats.meta;
+  ALPHA = impact?.meta?.alpha ?? null;
+  delete POOLS[`${SEASON}|${curScope}`];   // rebuilt lazily against the new rows
+
+  fillSelect("conf-sel", [...new Set(allRows.map(r => r.conf).filter(Boolean))].sort(), "All conferences");
+  fillSelect("team-sel", [...new Set(allRows.map(r => r.t).filter(Boolean))].sort(),    "All teams");
+
+  if (!handlersBound) {
+    ["search", "conf-sel", "team-sel", "min-mpg", "min-gp"].forEach(id =>
+      document.getElementById(id).addEventListener("input", render));
+    document.getElementById("sf-add").addEventListener("click", () => addStatFilterRow());
+    document.getElementById("sf-clear").addEventListener("click", () => {
+      document.getElementById("stat-filters").innerHTML = "";
+      ensureStatFilterRow(); render();
+    });
+    ensureStatFilterRow();
+    handlersBound = true;
+  }
+  renderHead(); render(); buildFooter();
+}
+
+function fillSelect(id, values, allLabel) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>`;
+  values.forEach(v => { const o = document.createElement("option"); o.value = o.textContent = v; sel.appendChild(o); });
+  if (values.includes(cur)) sel.value = cur;
+}
+
+function renderHead() {
+  const head = document.getElementById("ps-head");
+  head.innerHTML = "<tr>" + activeCols().map(c => {
+    const sortable = !c.key.startsWith("_");
+    const cls = c.key === sortCol ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : "";
+    const tip = TOOLTIPS[c.key] ? ` title="${TOOLTIPS[c.key]}"` : "";
+    return `<th class="${cls}"${sortable ? ` data-col="${c.key}" data-dir="${c.dir || "desc"}"` : ""}${tip}>${c.label}</th>`;
+  }).join("") + "</tr>";
+  head.querySelectorAll("th[data-col]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+      else { sortCol = col; sortDir = th.dataset.dir || "desc"; }
+      renderHead(); render();
+    });
+  });
+}
+
+function addStatFilterRow(key = "", op = "ge", val = "") {
+  const row = document.createElement("div");
+  row.className = "stat-filter-row";
+  row.innerHTML =
+    `<select class="sf-stat">${SF_OPTIONS_HTML}</select>
+     <select class="sf-op">
+       <option value="ge">&ge;</option>
+       <option value="le">&le;</option>
+       <option value="pge">&ge; %ile</option>
+       <option value="ple">&le; %ile</option>
+     </select>
+     <input type="number" class="sf-val" placeholder="value" step="0.1">
+     <button type="button" class="sf-remove" title="Remove">✕</button>`;
+  document.getElementById("stat-filters").appendChild(row);
+  const statSel = row.querySelector(".sf-stat");
+  const opSel = row.querySelector(".sf-op");
+  const valEl = row.querySelector(".sf-val");
+  statSel.value = key; opSel.value = op; valEl.value = val;
+  const syncHint = () => {
+    valEl.placeholder = isPctOp(opSel.value) ? "0–100" : "value";
+  };
+  syncHint();
+  statSel.addEventListener("change", () => { syncHint(); render(); });
+  opSel.addEventListener("change", () => { syncHint(); render(); });
+  valEl.addEventListener("input", render);
+  row.querySelector(".sf-remove").addEventListener("click", () => {
+    row.remove(); ensureStatFilterRow(); render();
+  });
+  return row;
+}
+function ensureStatFilterRow() {
+  if (!document.querySelector(".stat-filter-row")) addStatFilterRow();
+}
+function activeStatFilters() {
+  return [...document.querySelectorAll(".stat-filter-row")].map(r => ({
+    key: r.querySelector(".sf-stat").value,
+    op:  r.querySelector(".sf-op").value,
+    val: parseFloat(r.querySelector(".sf-val").value),
+  })).filter(f => f.key && !isNaN(f.val));
+}
+// Percentile of v within the pool for `key` (0-100, higher = better rank).
+function pctRankIn(pool, key, v) {
+  const vals = pool.map(r => r[key]).filter(x => x != null).sort((a, b) => a - b);
+  if (!vals.length) return null;
+  let lo = 0, hi = vals.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (vals[m] < v) lo = m + 1; else hi = m; }
+  return (lo / vals.length) * 100;
+}
+
+function filtered() {
+  const search = document.getElementById("search").value.toLowerCase().trim();
+  const conf   = document.getElementById("conf-sel").value;
+  const team   = document.getElementById("team-sel").value;
+  const minM   = parseFloat(document.getElementById("min-mpg").value) || 0;
+  const minG   = parseFloat(document.getElementById("min-gp").value) || 0;
+
+  let pool = allRows.filter(r =>
+    (!search || r.n?.toLowerCase().includes(search) ||
+                r.t?.toLowerCase().includes(search) ||
+                r.ta?.toLowerCase().includes(search)) &&
+    (!conf || r.conf === conf) &&
+    (!team || r.t === team) &&
+    (r.min == null || r.min >= minM) &&
+    (r.gp == null || r.gp >= minG));
+
+  // Apply each stat condition in turn against the surviving pool, so percentile
+  // ops rank within what you've already narrowed to.
+  for (const f of activeStatFilters()) {
+    pool = pool.filter(r => {
+      const v = r[f.key];
+      if (v == null) return false;
+      if (f.op === "ge") return v >= f.val;
+      if (f.op === "le") return v <= f.val;
+      const pr = pctRankIn(pool, f.key, v);
+      if (pr == null) return false;
+      return f.op === "pge" ? pr >= f.val : pr <= f.val;
+    });
+  }
+  return pool;
+}
+
+function sorted(rows) {
+  return [...rows].sort((a, b) => {
+    const av = a[sortCol], bv = b[sortCol];
+    // Missing values always sink, regardless of direction — otherwise a column
+    // the season has no data for would top the table.
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    const cmp = typeof av === "string" ? av.localeCompare(bv) : av - bv;
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+}
+
+function fmtVal(r, c) {
+  const v = r[c.key];
+  if (v == null) return "—";
+  if (c.signed) return (v >= 0 ? "+" : "-") + Math.abs(v).toFixed(c.d ?? 1);
+  if ((c.d ?? 1) === 0) return fmtInt(v);
+  return Number(v).toFixed(c.d ?? 1);
+}
+function cls(v) { return v == null ? "" : v > 0 ? "pos" : v < 0 ? "neg" : ""; }
+
+function rowHTML(r, i) {
+  const cols = activeCols();
+  return `<tr onclick="openModal(_currentRows[${i}])">` + cols.map(c => {
+    if (c.key === "_rk")  return `<td class="rk num">${i + 1}</td>`;
+    if (c.key === "n")    return `<td class="player-name">${r.n}</td>`;
+    if (c.key === "ta")   return `<td style="color:var(--muted)">${r.ta ?? "—"}</td>`;
+    const v = r[c.key];
+    if (curDisplay === "pct" && !PCT_EXCLUDE.has(c.key)) {
+      const p = pctFor(c.key, v);
+      const { bg, fg } = Percentile.color(p);
+      const w = c.bold ? "800" : "600";
+      return `<td class="num" style="background:${bg};color:${fg};font-weight:${w}">${Percentile.label(p)}</td>`;
+    }
+    const cc = c.signed ? cls(v) : "";
+    const style = c.bold ? ' style="font-weight:800"' : "";
+    return `<td class="num ${cc}"${style}>${fmtVal(r, c)}</td>`;
+  }).join("") + "</tr>";
+}
+
+function appendChunk() {
+  const tbody = document.getElementById("ps-body");
+  const end = Math.min(_rendered + RENDER_CHUNK, _currentRows.length);
+  let html = "";
+  for (let i = _rendered; i < end; i++) html += rowHTML(_currentRows[i], i);
+  tbody.insertAdjacentHTML("beforeend", html);
+  _rendered = end;
+  const s = document.getElementById("ps-sentinel");
+  if (s) s.style.display = _rendered < _currentRows.length ? "" : "none";
+  if (_rendered < _currentRows.length) {
+    requestAnimationFrame(() => {
+      const s2 = document.getElementById("ps-sentinel");
+      if (s2 && s2.getBoundingClientRect().top < window.innerHeight + 800) appendChunk();
+    });
+  }
+}
+
+function ensureObserver() {
+  let s = document.getElementById("ps-sentinel");
+  if (!s) {
+    s = document.createElement("div");
+    s.id = "ps-sentinel"; s.style.height = "1px";
+    const wrap = document.querySelector(".tbl-wrap");
+    wrap.parentNode.insertBefore(s, wrap.nextSibling);
+  }
+  if (!_io) {
+    _io = new IntersectionObserver(e => {
+      if (e.some(x => x.isIntersecting) && _rendered < _currentRows.length) appendChunk();
+    }, { rootMargin: "800px 0px" });
+    _io.observe(s);
+  }
+}
+
+function render() {
+  _currentRows = sorted(filtered());
+  document.getElementById("count-label").textContent = _currentRows.length
+    ? `${_currentRows.length} of ${allRows.length} players`
+    : "No players match these filters.";
+  document.getElementById("ps-body").innerHTML = "";
+  _rendered = 0;
+  appendChunk();
+  ensureObserver();
+}
+
+function buildFooter() {
+  if (!META) return;
+  document.getElementById("footer-cap").textContent =
+    `${seasonLabel(SEASON)} · ${SCOPES.find(s => s.key === curScope)?.label} · ${allRows.length} players`
+    + (META.built_at ? ` · data through ${String(META.built_at).slice(0, 10)}` : "")
+    + (ALPHA ? ` · ridge α=${ALPHA} (tuned once on 2024, fixed for every season)` : "");
+}
+
+function buildNote() {
+  document.getElementById("note").innerHTML =
+    "<strong>Every number on this page is computed from the league's raw play-by-play</strong>, " +
+    "including the box score — nothing is copied from a stats feed. That matters most for the " +
+    "Advanced tab. USG%, AST%, ORB%, DRB%, REB%, STL% and BLK% all need to know what a player's " +
+    "teammates and opponents did <em>while she was on the floor</em>; the usual formulas don't " +
+    "have lineup data, so they approximate it with a share of team minutes. We reconstruct the " +
+    "five-on-five lineup for every second of every game, so those denominators are counted rather " +
+    "than estimated. The league's own totals are kept as a benchmark and reconciled against " +
+    "(<code>python -m data.verify_box</code>), not used as the source." +
+    "<br><br><strong>RAPM</strong> is Regularized Adjusted Plus-Minus: each player's effect on net " +
+    "efficiency per 100 possessions, solved from every lineup stint and adjusted for who " +
+    "she played with and against. <strong>On/Off</strong> is the same data unadjusted — the raw " +
+    "input the ridge is fit on. The ridge penalty was tuned once by cross-validation and " +
+    "held fixed across all seasons, so ratings are comparable year to year. " +
+    "Possession totals come from Dean Oliver's estimator (FGA − OREB + TOV + 0.44×FTA). " +
+    "Off / Def / Total RAPM are points per 100 possessions above an average player; " +
+    "positive defense = good." +
+    "<br><br><strong>RAPM is solved on regular-season play-by-play only</strong>, so it is shown " +
+    "on every scope but always reflects regular-season possessions — the <em>RS Poss</em> column " +
+    "is the sample behind it, while <em>Poss</em> is the possessions in the scope you are viewing. " +
+    "Playoff runs are a few games; a ridge fit on that little data describes the prior more than " +
+    "the player, so it is not computed. Box and on/off splits are plain aggregates and are shown " +
+    "for every scope.";
+}
+
+// Player card is the shared PlayerCard module — same modal on every page.
+function openModal(r) {
+  PlayerCard.open(r.id, { season: SEASON, scope: curScope, name: r.n, teamName: r.t, slug: r.slug });
+}
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

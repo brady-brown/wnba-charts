@@ -1,0 +1,98 @@
+{
+ "ATL": {
+  "abbr": "ATL",
+  "city": "Atlanta",
+  "conf": "East",
+  "id": 1611661330,
+  "name": "Atlanta Dream",
+  "slug": "atlanta-dream"
+ },
+ "CHI": {
+  "abbr": "CHI",
+  "city": "Chicago",
+  "conf": "East",
+  "id": 1611661329,
+  "name": "Chicago Sky",
+  "slug": "chicago-sky"
+ },
+ "CON": {
+  "abbr": "CON",
+  "city": "Connecticut",
+  "conf": "East",
+  "id": 1611661323,
+  "name": "Connecticut Sun",
+  "slug": "connecticut-sun"
+ },
+ "IND": {
+  "abbr": "IND",
+  "city": "Indiana",
+  "conf": "East",
+  "id": 1611661325,
+  "name": "Indiana Fever",
+  "slug": "indiana-fever"
+ },
+ "LAS": {
+  "abbr": "LAS",
+  "city": "Los Angeles",
+  "conf": "West",
+  "id": 1611661320,
+  "name": "Los Angeles Sparks",
+  "slug": "los-angeles-sparks"
+ },
+ "MIN": {
+  "abbr": "MIN",
+  "city": "Minnesota",
+  "conf": "West",
+  "id": 1611661324,
+  "name": "Minnesota Lynx",
+  "slug": "minnesota-lynx"
+ },
+ "NYL": {
+  "abbr": "NYL",
+  "city": "New York",
+  "conf": "East",
+  "id": 1611661313,
+  "name": "New York Liberty",
+  "slug": "new-york-liberty"
+ },
+ "PHO": {
+  "abbr": "PHO",
+  "city": "Phoenix",
+  "conf": "West",
+  "id": 1611661317,
+  "name": "Phoenix Mercury",
+  "slug": "phoenix-mercury"
+ },
+ "SAN": {
+  "abbr": "SAN",
+  "city": "San Antonio",
+  "conf": "West",
+  "id": 1611661319,
+  "name": "San Antonio Stars",
+  "slug": "san-antonio-stars"
+ },
+ "SEA": {
+  "abbr": "SEA",
+  "city": "Seattle",
+  "conf": "West",
+  "id": 1611661328,
+  "name": "Seattle Storm",
+  "slug": "seattle-storm"
+ },
+ "TUL": {
+  "abbr": "TUL",
+  "city": "Tulsa",
+  "conf": "West",
+  "id": 1611661321,
+  "name": "Tulsa Shock",
+  "slug": "tulsa-shock"
+ },
+ "WAS": {
+  "abbr": "WAS",
+  "city": "Washington",
+  "conf": "East",
+  "id": 1611661322,
+  "name": "Washington Mystics",
+  "slug": "washington-mystics"
+ }
+}

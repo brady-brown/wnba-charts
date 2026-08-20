@@ -1,0 +1,460 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Light, low-chrome palette, ported from NBA Charts with a WNBA accent.
+   Same token names throughout, so every page inherits a palette change without
+   edits — only these two lines differ from the NBA site. */
+:root {
+  --t1:    #C2410C;   /* accent — WNBA orange */
+  --t2:    #0F766E;   /* secondary accent — teal */
+  --ink:   #0F172A;   /* primary text */
+  --muted: #64748B;   /* secondary text */
+  --dim:   #94A3B8;   /* tertiary text */
+  --card:  #FFFFFF;   /* raised surface */
+  --card2: #F1F5F9;   /* subtle fill (table heads, chips) */
+  --line:  #E2E8F0;   /* hairline rules */
+  --line2: #EEF2F6;   /* even lighter — inner table rows */
+  --bg:    #F8FAFC;   /* page canvas */
+  --pos:   #15803D;   /* good (darker than the dark theme's green for contrast) */
+  --neg:   #DC2626;   /* bad */
+  --shadow: 0 1px 2px rgba(15,23,42,.04), 0 1px 3px rgba(15,23,42,.06);
+}
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Nav ──────────────────────────────────────────────────────────────────── */
+nav {
+  border-bottom: 1px solid var(--line);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 52px;
+  position: sticky;
+  top: 0;
+  background: rgba(248,250,252,.85);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 1.08rem;
+  color: var(--ink);
+  letter-spacing: -.03em;
+  text-decoration: none;
+  margin-right: 16px;
+}
+.nav-brand img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: none;
+}
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 8px;
+  transition: color .15s, background .15s;
+}
+nav a:hover          { color: var(--ink); background: var(--card2); }
+nav a.active         { color: var(--ink); }
+/* Responsive nav: on desktop the links sit in a flat row and the hamburger is
+   hidden; the mobile breakpoint below turns the panel into a dropdown. */
+.nav-links  { display: flex; align-items: center; gap: 2px; }
+.nav-toggle { display: none; }
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 40px 28px 96px;
+}
+
+/* ── Typography ───────────────────────────────────────────────────────────── */
+h1, h2, h3 { letter-spacing: -0.025em; font-weight: 700; margin: 0 0 6px; }
+h2 { font-size: 1.75rem; }
+
+.page-sub {
+  color: var(--muted);
+  margin: 0 0 26px;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  max-width: 76ch;
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+.hc-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+
+/* ── Section label ────────────────────────────────────────────────────────── */
+.hc-sec {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 0 0 12px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+.hc-hero {
+  background: radial-gradient(120% 140% at 50% 0%, #FFFFFF 0%, var(--bg) 70%);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 26px 24px 22px;
+  margin-bottom: 18px;
+}
+.hc-teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.hc-team { text-align: center; }
+.hc-team img {
+  width: 96px; height: 96px;
+  object-fit: contain;
+  filter: none;
+}
+.hc-team-name { font-weight: 800; font-size: 1.05rem; margin-top: 8px; line-height: 1.2; }
+.hc-team-sub  { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+.hc-vs   { color: var(--dim); font-weight: 900; font-size: 1.1rem; letter-spacing: .05em; }
+.hc-score { font-size: 2.6rem; font-weight: 900; line-height: 1; text-align: center; }
+
+/* ── Win-prob bar ─────────────────────────────────────────────────────────── */
+.hc-bar {
+  height: 30px; border-radius: 999px; overflow: hidden;
+  display: flex; border: 1px solid var(--line); margin: 0 0 4px;
+}
+.hc-bar > div {
+  display: flex; align-items: center;
+  font-weight: 800; font-size: 0.92rem;
+  color: #fff; padding: 0 14px; white-space: nowrap;
+  transition: width .4s ease;
+}
+.hc-bar-l { justify-content: flex-start; }
+.hc-bar-r { justify-content: flex-end; }
+.hc-bar-labels {
+  display: flex; justify-content: space-between;
+  color: var(--muted); font-size: .78rem; font-weight: 600;
+}
+
+/* ── Verdict ──────────────────────────────────────────────────────────────── */
+.hc-verdict {
+  text-align: center; margin: 14px auto 0;
+  font-size: 1.15rem; font-weight: 700;
+}
+.hc-verdict b { font-weight: 900; }
+
+/* ── Chips ────────────────────────────────────────────────────────────────── */
+.hc-chips {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  justify-content: center; margin: 16px 0;
+}
+.hc-chip {
+  background: var(--card2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 16px;
+  text-align: center; min-width: 110px;
+}
+.hc-chip .n { font-weight: 900; font-size: 1.15rem; }
+.hc-chip .l {
+  color: var(--muted); font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+
+/* ── Factor rows ──────────────────────────────────────────────────────────── */
+.hc-factor {
+  display: grid;
+  grid-template-columns: 140px 1fr 140px;
+  align-items: center; gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line2);
+}
+.hc-factor:last-child { border-bottom: none; }
+.hc-factor .lab {
+  color: var(--muted); font-size: 0.82rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.hc-factor .v1 { text-align: right; font-weight: 800; font-size: 1.05rem; }
+.hc-factor .v2 { text-align: left;  font-weight: 800; font-size: 1.05rem; }
+.hc-factor .mid { text-align: center; }
+.hc-edge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 999px; font-size: .78rem; font-weight: 800;
+}
+.hc-note { color: var(--dim); font-size: .78rem; text-align: center; margin-top: 2px; }
+
+/* ── Form controls ────────────────────────────────────────────────────────── */
+.form-row {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start;
+  margin-bottom: 16px;
+}
+.form-group {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 1; min-width: 160px;
+}
+.form-group label {
+  font-size: 0.82rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+select, input[type="text"], input[type="number"] {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+select:focus, input:focus {
+  outline: none;
+  border-color: var(--t1);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+}
+.radio-group { display: flex; flex-direction: column; gap: 8px; }
+.radio-group label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; cursor: pointer;
+  font-weight: 500; color: var(--ink);
+  text-transform: none; letter-spacing: 0;
+}
+input[type="radio"] { accent-color: var(--t1); width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  background: var(--t1); color: #fff;
+  border: none; border-radius: 10px;
+  padding: 11px 24px;
+  font-family: inherit; font-size: 0.95rem; font-weight: 700;
+  cursor: pointer; width: 100%;
+  transition: opacity .15s;
+  margin-top: 8px;
+}
+.btn:hover  { opacity: .88; }
+.btn:active { opacity: .75; }
+
+/* ── Expander ─────────────────────────────────────────────────────────────── */
+details {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin-top: 12px; overflow: hidden;
+}
+details summary {
+  padding: 12px 18px; cursor: pointer;
+  font-weight: 600; font-size: 0.9rem;
+  list-style: none; color: var(--muted);
+  user-select: none;
+}
+details summary:hover { color: var(--ink); background: var(--card2); }
+details[open] summary { border-bottom: 1px solid var(--line); }
+.details-body { padding: 16px 18px; }
+
+/* ── Breakdown table ──────────────────────────────────────────────────────── */
+.breakdown-table {
+  width: 100%; border-collapse: collapse; font-size: 0.9rem;
+}
+.breakdown-table th {
+  text-align: left; color: var(--muted);
+  font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+  padding: 0 0 8px; border-bottom: 1px solid var(--line);
+}
+.breakdown-table td {
+  padding: 8px 0; border-bottom: 1px solid var(--line2); vertical-align: top;
+}
+.breakdown-table tr:last-child td {
+  border-bottom: none; font-weight: 800; padding-top: 12px;
+}
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Home page cards ──────────────────────────────────────────────────────── */
+.home-hero {
+  text-align: center;
+  padding: 48px 24px 36px;
+}
+.home-logo {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  margin-bottom: 18px;
+  filter: none;
+}
+.home-hero .wordmark {
+  font-size: 3.2rem; font-weight: 900; letter-spacing: -.04em; line-height: 1;
+}
+.home-hero .tagline {
+  color: var(--muted); font-size: 1.05rem; margin-top: 6px;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.feature-card {
+  box-shadow: var(--shadow);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  text-decoration: none; color: inherit;
+  transition: border-color .15s, background .15s;
+}
+.feature-card:hover {
+  border-color: var(--t1);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+  background: var(--card2);
+}
+.feature-card .fc-title { font-size: 1.25rem; font-weight: 900; }
+.feature-card .fc-desc  { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.feature-card .fc-link  {
+  color: var(--t1); font-weight: 700; font-size: 0.875rem;
+  margin-top: auto; display: flex; align-items: center; gap: 4px;
+}
+.more-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+.more-card {
+  box-shadow: var(--shadow);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  text-decoration: none; color: inherit;
+  transition: border-color .15s, background .15s;
+}
+.more-card:hover { border-color: var(--t1);
+  box-shadow: 0 0 0 3px rgba(79,70,229,.12); background: var(--card2); }
+.more-card strong { display: block; font-weight: 800; margin-bottom: 2px; }
+.more-card span { color: var(--muted); font-size: 0.85rem; }
+
+/* ── Utility ──────────────────────────────────────────────────────────────── */
+.placeholder {
+  color: var(--muted); text-align: center;
+  padding: 40px 0; font-size: 0.95rem;
+}
+.caption { color: var(--dim); font-size: 0.8rem; margin-top: 8px; }
+hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+
+/* Phones / small tablets: collapse the nav into a hamburger dropdown. */
+@media (max-width: 700px) {
+  nav { padding: 0 14px; gap: 0; }
+  .nav-brand { font-size: 1rem; margin-right: auto; }
+  .nav-brand img { width: 34px; height: 34px; }
+
+  .nav-toggle {
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    width: 44px; height: 44px; padding: 0; margin-right: -10px;
+    background: none; border: none; cursor: pointer;
+  }
+  .nav-toggle span {
+    display: block; width: 22px; height: 2px; border-radius: 2px;
+    background: var(--ink); transition: transform .2s ease, opacity .2s ease;
+  }
+  nav.open .nav-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
+  nav.open .nav-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  .nav-links {
+    position: absolute; top: 52px; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    max-height: 0; overflow: hidden;
+    transition: max-height .25s ease;
+    box-shadow: 0 12px 24px rgba(0,0,0,.4);
+  }
+  nav.open .nav-links { max-height: 85vh; }
+  .nav-links a {
+    padding: 15px 18px; border-radius: 0; font-size: 1rem;
+    border-top: 1px solid var(--line);
+  }
+  .nav-links a.active { background: var(--card2); }
+
+  /* Tighter page gutters and headings on small screens. */
+  .container { padding: 20px 14px 64px; }
+  h2 { font-size: 1.35rem; }
+  .page-sub { font-size: 0.9rem; margin-bottom: 16px; }
+
+  /* Prevent iOS Safari from auto-zooming when a control gains focus. */
+  select, input[type="text"], input[type="number"] { font-size: 16px; }
+
+  /* Data tables: keep them readable and smooth-scrolling within their wrapper. */
+  .tbl-wrap { -webkit-overflow-scrolling: touch; }
+  .tbl-wrap table { font-size: 0.8rem; }
+  .tbl-wrap thead th { padding: 8px 9px; }
+  .tbl-wrap tbody td { padding: 7px 9px; }
+
+  /* Cards and home page. */
+  .hc-card, .feature-card {
+  box-shadow: var(--shadow); padding: 18px 16px; }
+  .home-hero { padding: 32px 16px 28px; }
+  .home-logo { width: 132px; height: 132px; }
+}
+
+@media (max-width: 600px) {
+  .hc-teams { gap: 6px; }
+  .hc-team img { width: 64px; height: 64px; }
+  .hc-score { font-size: 2rem; }
+  .hc-factor { grid-template-columns: 80px 1fr 80px; gap: 8px; font-size: 0.9rem; }
+  .hc-factor .v1, .hc-factor .v2 { font-size: 0.9rem; }
+  .home-hero .wordmark { font-size: 2.4rem; }
+}
+
+/* ── 2K-style hot-zone shot chart (shared: shot-charts + player modals) ──── */
+.zone-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 14px 16px; }
+.zone-card.zone-compact { border:none; background:transparent; padding:0; }
+.zone-head { text-align:center; margin-bottom:6px; }
+.zone-title { font-size:1.05rem; font-weight:800; color:var(--ink); }
+.zone-sub   { font-size:0.78rem; color:var(--muted); margin-top:2px; }
+.zone-area  { position:relative; width:100%; max-width:520px; margin:0 auto; }
+.zone-area svg { display:block; width:100%; height:auto; }
+.zone-poly  { cursor:pointer; transition:opacity .12s; }
+.zone-poly:hover { opacity:.82; }
+.zone-tip {
+  position:absolute; pointer-events:none; background:var(--ink); color:#fff;
+  border-radius:8px; padding:9px 13px; font-size:12px; display:none; z-index:10;
+  border:.5px solid rgba(255,255,255,.18); min-width:120px;
+  box-shadow:0 6px 20px rgba(15,23,42,.28);
+}
+.zone-tip .t { font-weight:700; font-size:13px; margin-bottom:3px; }
+.zone-tip .s { color:#cbd5e1; font-size:11px; margin-bottom:5px; }
+.zone-tip .p { font-size:15px; font-weight:700; }
+.zone-tip .r { font-size:11px; margin-top:3px; }
+.zone-legend { max-width:520px; margin:12px auto 0; }
+.zone-legend .bar {
+  height:11px; border-radius:4px;
+  background:linear-gradient(to right,#7a0000 0%,#c0392b 25%,#e8d8b8 50%,#27ae60 75%,#0a4a25 100%);
+}
+.zone-legend .lab { display:flex; justify-content:space-between; font-size:10.5px; color:var(--muted); margin-top:3px; }
+.zone-legend .cap { text-align:center; font-size:10.5px; color:var(--muted); margin-bottom:4px; }

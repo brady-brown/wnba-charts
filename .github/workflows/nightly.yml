@@ -1,0 +1,134 @@
+# Nightly rebuild of the season in progress.
+#
+# The chain itself lives in data/nightly.py, not here. A schedule that only
+# exists in YAML cannot be run locally, cannot be tested, and drifts from what
+# a person types by hand — so this file does CI things (cache, commit, deploy)
+# and delegates the basketball to a module that runs identically on a laptop.
+name: nightly
+
+on:
+  schedule:
+    # 11:00 UTC = 07:00 ET / 04:00 PT. The latest WNBA tip-off is 22:00 ET, so
+    # every game on the slate has been final for hours.
+    #
+    # May through October only. The league does not play November through
+    # April, and a nightly that ran anyway would fail its own staleness gate
+    # every night for six months, which is how a red build stops meaning
+    # anything. Off-season rebuilds go through workflow_dispatch.
+    - cron: "0 11 * 5-10 *"
+
+  workflow_dispatch:
+    inputs:
+      season:
+        description: "Season to update (blank = current year)"
+        required: false
+        type: string
+      max_stale_days:
+        description: "Days the newest game may be old before the build fails"
+        required: false
+        default: "4"
+        type: string
+      skip_refresh:
+        description: "Trust the cache as-is (skip stage 1)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write     # push the rebuilt JSON back
+  pages: write        # publish
+  id-token: write     # OIDC for the Pages deploy
+
+# Never let two nightlies race: they would fetch the same games, then fight
+# over the same commit.
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # data/cache/ is write-once by design, so restoring it is the difference
+      # between fetching last night's games and re-fetching the whole season.
+      # The key is unique per run because GitHub caches are immutable — this is
+      # the rolling-cache pattern: always miss the exact key, always hit the
+      # prefix, always save the grown cache back.
+      - name: Restore API cache
+        uses: actions/cache@v4
+        with:
+          path: data/cache
+          key: wnba-api-cache-${{ github.run_id }}
+          restore-keys: wnba-api-cache-
+
+      - name: Resolve season
+        id: season
+        run: |
+          season="${{ inputs.season }}"
+          echo "season=${season:-$(date -u +%Y)}" >> "$GITHUB_OUTPUT"
+
+      - name: Nightly build
+        run: |
+          python -m data.nightly \
+            --season "${{ steps.season.outputs.season }}" \
+            ${{ inputs.skip_refresh && '--no-refresh' || '' }}
+
+      # Gates the deploy. A stage that crashes already fails the step above;
+      # this catches the build that succeeds and writes something wrong.
+      - name: Health check
+        run: |
+          python -m data.health_check \
+            --season "${{ steps.season.outputs.season }}" \
+            --max-stale-days "${{ inputs.max_stale_days || '4' }}"
+
+      # build_site stamps meta.built_at with the latest GAME DATE rather than
+      # wall clock, so a run with no new games rewrites byte-identical JSON and
+      # produces no diff. That is the intended quiet night, not a failure.
+      - name: Commit rebuilt data
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes — nothing new since the last run"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "nightly: ${{ steps.season.outputs.season }} through $(date -u +%Y-%m-%d)"
+            git push
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  # Deploys on every green run, including quiet ones. The artifact is already
+  # built by the time we get here, so re-publishing identical bytes costs
+  # seconds and guarantees the live site matches the repo — which a
+  # deploy-only-on-change rule cannot, since one failed deploy would otherwise
+  # leave the site behind forever.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

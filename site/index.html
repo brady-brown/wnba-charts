@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WNBA Charts</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#F8FAFC">
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">WNBA Charts</a>
+</nav>
+
+<div class="container">
+
+  <div class="home-hero">
+    <div class="wordmark">WNBA Charts</div>
+    <div class="tagline">Free and accessible WNBA analytics — every season since 1997</div>
+  </div>
+
+  <div class="feature-grid">
+    <a class="feature-card" href="player-stats.html">
+      <div class="fc-title">Player Stats &amp; RAPM</div>
+      <div class="fc-desc">
+        Box score, shooting, advanced rates, on/off splits, and Regularized Adjusted
+        Plus-Minus — each player's effect on net efficiency, adjusted for teammates and
+        opponents and independent of the box score. Filter, sort, and compare across 30 seasons.
+      </div>
+      <div class="fc-link">Explore Player Stats &rarr;</div>
+    </a>
+    <a class="feature-card" href="shot-charts.html">
+      <div class="fc-title">Shot Charts</div>
+      <div class="fc-desc">
+        Zone efficiency for any team or player, coloured against that season's league
+        average. The three-point line moved in 2004 and again in 2013, so the arc drawn
+        is the one that was actually on the floor that year.
+      </div>
+      <div class="fc-link">Browse Shot Charts &rarr;</div>
+    </a>
+  </div>
+
+  <div style="color:var(--muted);font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:8px 0 10px">
+    How it's built
+  </div>
+  <div class="more-row">
+    <a class="more-card" href="player-stats.html">
+      <strong>194,190 stints</strong>
+      <span>Every lineup change across 6,916 games from 1997 to today, reconstructed from play-by-play.</span>
+    </a>
+    <a class="more-card" href="player-stats.html">
+      <strong>Box score included</strong>
+      <span>Even the counting stats are derived from the play-by-play, so rebound rates and usage
+        divide by what really happened on the floor rather than a share of minutes.</span>
+    </a>
+    <a class="more-card" href="player-stats.html">
+      <strong>One ridge penalty</strong>
+      <span>Tuned once by cross-validation and held fixed, so seasons compare directly.</span>
+    </a>
+  </div>
+
+  <hr>
+  <p class="caption">WNBA analytics. Data via the league's public play-by-play feed.</p>
+
+</div>
+
+<script src="js/common.js"></script>
+</body>
+</html>

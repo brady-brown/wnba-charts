@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shot Charts | WNBA Charts</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#F8FAFC">
+  <style>
+    .tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tabs button {
+      background: none; border: none; cursor: pointer; font-family: inherit;
+      font-size: .95rem; font-weight: 700; color: var(--muted); padding: 10px 18px;
+      border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s;
+    }
+    .tabs button:hover { color: var(--ink); }
+    .tabs button.active { color: var(--ink); border-bottom-color: var(--t1); }
+    .filters { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+    .filters .form-group { flex: 1; min-width: 150px; }
+    .filters .form-group.narrow { flex: 0 0 130px; }
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 860px) { .chart-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 16px 18px;
+    }
+    .card h3 { margin: 0 0 2px; font-size: 1rem; font-weight: 800; }
+    .card .sub { color: var(--muted); font-size: .8rem; margin-bottom: 10px; }
+    .status { color: var(--muted); font-size: .85rem; padding: 20px 0; }
+    .note { color: var(--muted); font-size: .75rem; line-height: 1.45; margin-top: 8px; }
+    .note:empty { display: none; }
+    .note.warn { color: #b45309; }
+    .subject-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .subject-head .nm { font-size: 1.25rem; font-weight: 900; }
+    .subject-head .meta { color: var(--muted); font-size: .82rem; }
+    .subject-head .spacer { flex: 1; }
+    .card-btn {
+      font: inherit; font-size: .8rem; font-weight: 600; padding: 7px 12px;
+      border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+      color: var(--t1); cursor: pointer;
+    }
+    .card-btn:hover { border-color: var(--t1); }
+    /* ZoneChart.render() ships its own .zone-card shell (it is also used standalone
+       inside the player modal). Inside a .card here that shell is redundant, so it
+       is flattened rather than forked into a second rendering path. */
+    .card .zone-card { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+    table.mini { border-collapse: collapse; width: 100%; font-size: .78rem; }
+    table.mini th, table.mini td { padding: 6px 8px; text-align: right; }
+    table.mini th { background: var(--card2); color: var(--muted); font-size: .68rem;
+      text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+    table.mini td.z, table.mini th.z { text-align: left; }
+    table.mini tbody tr:nth-child(even) { background: var(--line2); }
+    .mini-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .pos { color: var(--pos); font-weight: 700; }
+    .neg { color: var(--neg); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-brand">WNBA Charts</a>
+</nav>
+
+<div class="container">
+
+  <h2>Shot Charts</h2>
+  <p class="page-sub">
+    Zone efficiency and shot density for any team or player. Each wedge is coloured by
+    <strong>FG% relative to the league average for that zone that season</strong> — so green means
+    better than the league shoots from there, not simply a high percentage. A restricted-area
+    look reads green at 60% while a 40% mid-range can too. Zones with few attempts are hatched.
+  </p>
+
+  <div class="tabs" id="scope-tabs"></div>
+  <div style="border-bottom:1px solid var(--line);margin-bottom:18px"></div>
+
+  <div class="filters">
+    <div class="form-group narrow">
+      <label for="season-sel">Season</label>
+      <select id="season-sel"></select>
+    </div>
+    <div class="form-group">
+      <label for="team-sel">Team</label>
+      <select id="team-sel"></select>
+    </div>
+    <div class="form-group">
+      <label for="player-sel">Player</label>
+      <select id="player-sel"><option value="">Whole team</option></select>
+    </div>
+  </div>
+
+  <div id="subject-head" class="subject-head" style="display:none"></div>
+
+  <div class="chart-grid">
+    <div class="card">
+      <h3>Zone Efficiency</h3>
+      <div class="sub" id="zone-sub"></div>
+      <div id="zone-chart"></div>
+    </div>
+    <div class="card">
+      <h3>Shot Density</h3>
+      <div class="sub" id="density-sub"></div>
+      <div id="density-status" class="status"></div>
+      <div id="density-chart"></div>
+      <div id="density-note" class="note warn"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h3>Zone Breakdown</h3>
+    <div class="sub" id="table-sub"></div>
+    <div class="mini-wrap">
+      <table class="mini">
+        <thead><tr><th class="z">Zone</th><th>FGA</th><th>FG%</th><th>vs Lg</th></tr></thead>
+        <tbody id="zone-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="caption" id="footer-cap" style="margin-top:14px"></p>
+  <p class="caption" id="note"></p>
+  <hr>
+  <p class="caption">WNBA analytics. Data via the league's public play-by-play feed.</p>
+
+</div>
+
+<script src="js/common.js"></script>
+<script src="js/zone-chart.js"></script>
+<script src="js/court.js"></script>
+<script src="js/percentile.js"></script>
+<script src="js/player-card.js"></script>
+<script>
+// Shots are exported for the regular season and playoffs only — there is no
+// "all" payload, so the scope tabs are the subset of SCOPES that has data.
+const SHOT_SCOPES = SCOPES.filter(s => s.key !== "all");
+
+let INDEX = null, PAYLOAD = null;
+let SEASON = null, curScope = "reg", curSlug = null, curPlayer = "";
+let handlersBound = false;
+
+async function init() {
+  const seasons = await loadSeasons();
+  if (!seasons.length) {
+    document.getElementById("zone-chart").innerHTML = `<div class="status">No seasons found.</div>`;
+    return;
+  }
+  SEASON = seasons[0];
+  const sSel = document.getElementById("season-sel");
+  fillSeasonSelect(sSel, seasons, SEASON);
+  sSel.addEventListener("change", () => { SEASON = sSel.value; curSlug = null; reload(); });
+
+  const st = document.getElementById("scope-tabs");
+  SHOT_SCOPES.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = s.label;
+    b.className = s.key === curScope ? "active" : "";
+    b.onclick = () => setScope(s.key, b);
+    st.appendChild(b);
+  });
+  buildNote();
+  await reload();
+}
+
+function setScope(key, btn) {
+  if (key === curScope) return;
+  curScope = key;
+  [...document.getElementById("scope-tabs").children].forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  reload();
+}
+
+function clearCharts(msg) {
+  document.getElementById("zone-chart").innerHTML = `<div class="status">${msg}</div>`;
+  document.getElementById("zone-sub").textContent = "";
+  document.getElementById("density-sub").textContent = "";
+  document.getElementById("density-status").textContent = "";
+  document.getElementById("density-note").textContent = "";
+  document.getElementById("density-chart").innerHTML = "";
+  document.getElementById("table-sub").textContent = "";
+  document.getElementById("zone-table").innerHTML = "";
+  document.getElementById("subject-head").style.display = "none";
+  document.getElementById("footer-cap").textContent = "";
+}
+
+async function reload() {
+  INDEX = await loadJSON(`data/${SEASON}/shots-index${scopeSuffix(curScope)}.json`);
+  const tSel = document.getElementById("team-sel");
+  if (!INDEX?.teams?.length) {
+    tSel.innerHTML = "";
+    clearCharts("No shot data for this scope.");
+    return;
+  }
+
+  const prev = tSel.value;
+  tSel.innerHTML = INDEX.teams
+    .map(t => `<option value="${t.slug}">${t.team} (${t.fga} FGA)</option>`).join("");
+  // Keep the selected team across scope switches when they still have data.
+  tSel.value = INDEX.teams.some(t => t.slug === prev) ? prev
+             : (INDEX.teams.some(t => t.slug === curSlug) ? curSlug : INDEX.teams[0].slug);
+
+  if (!handlersBound) {
+    tSel.addEventListener("change", () => { curPlayer = ""; loadTeam(tSel.value); });
+    document.getElementById("player-sel").addEventListener("change", e => {
+      curPlayer = e.target.value; render();
+    });
+    handlersBound = true;
+  }
+  await loadTeam(tSel.value);
+}
+
+async function loadTeam(slug) {
+  curSlug = slug;
+  document.getElementById("density-status").textContent = "Loading…";
+  const p = await loadJSON(`data/${SEASON}/shots/${slug}${scopeSuffix(curScope)}.json`);
+  if (!p) { clearCharts("Team payload not found."); return; }
+  PAYLOAD = p;
+
+  const pSel = document.getElementById("player-sel");
+  const prev = curPlayer;
+  pSel.innerHTML = `<option value="">Whole team</option>` +
+    p.players.map(n => `<option value="${n}">${n}</option>`).join("");
+  curPlayer = p.players.includes(prev) ? prev : "";
+  pSel.value = curPlayer;
+
+  render();
+}
+
+function render() {
+  const p = PAYLOAD, idx = INDEX;
+  if (!p || !idx) return;
+  const scopeLabel = SHOT_SCOPES.find(s => s.key === curScope)?.label ?? "";
+
+  // Geometry comes from the payload, never inferred from the season — this is
+  // what keeps the drawn arc identical to the one the classifier used.
+  const geom = ZoneChart.geometry(p.arc_r, p.corner_x);
+
+  let zoneData, subject;
+  if (curPlayer) {
+    subject = curPlayer;
+    zoneData = p.player_zones[curPlayer];
+    if (!zoneData) {
+      // Fewer than 30 attempts, so no precomputed rollup — derive it from the
+      // raw coordinates rather than showing nothing.
+      const pi = p.players.indexOf(curPlayer);
+      zoneData = ZoneChart.computeZones(p.shots, geom, (_g, playerIdx) => playerIdx === pi);
+    }
+  } else {
+    subject = p.team;
+    zoneData = p.team_zones;
+  }
+
+  // Header
+  const head = document.getElementById("subject-head");
+  head.style.display = "flex";
+  head.innerHTML = (curPlayer
+    ? `<div><div class="nm">${curPlayer}</div>
+       <div class="meta">${p.team} · ${scopeLabel} · 3PT line ${idx.era}</div></div>
+       <div class="spacer"></div>
+       <button type="button" class="card-btn" id="open-card">Player card &rarr;</button>`
+    : `<div><div class="nm">${p.team}</div>
+       <div class="meta">${p.gp} games · ${scopeLabel} · 3PT line ${idx.era}</div></div>`);
+  const cardBtn = document.getElementById("open-card");
+  if (cardBtn) cardBtn.onclick = () => {
+    const pi = p.players.indexOf(curPlayer);
+    PlayerCard.open(Number(p.player_ids[pi]), {
+      season: SEASON, scope: curScope, name: curPlayer, teamName: p.team, slug: p.slug,
+    });
+  };
+
+  // Zone chart — precomputed server-side for the default views, so no client math.
+  const att = zoneData.reduce((s, z) => s + z[2], 0);
+  const made = zoneData.reduce((s, z) => s + z[1], 0);
+  document.getElementById("zone-sub").textContent =
+    `${made}/${att} FG · ${att ? (made / att * 100).toFixed(1) : "—"}%`;
+  ZoneChart.render(document.getElementById("zone-chart"), zoneData, {
+    geom, zones: idx.zone_names, baselines: idx.league_baselines, league: "WNBA", minAtt: 5,
+  });
+
+  renderTable(zoneData, subject, att);
+  renderDensity(p, geom, att);
+
+  document.getElementById("footer-cap").textContent =
+    `${seasonLabel(SEASON)} · ${scopeLabel} · ${idx.meta.n_teams} teams · data through ${idx.meta.built_at}`;
+}
+
+function renderTable(zoneData, subject, att) {
+  const idx = INDEX;
+  document.getElementById("table-sub").textContent = `${subject} · ${att} attempts, by zone`;
+  document.getElementById("zone-table").innerHTML = zoneData
+    .slice().sort((a, b) => b[2] - a[2]).map(([zi, m, a]) => {
+      const base = idx.league_baselines[zi];
+      const pct = a > 0 ? m / a : 0;
+      const rel = base != null ? (pct - base) * 100 : null;
+      const cls = rel == null ? "" : (rel > 0 ? "pos" : rel < 0 ? "neg" : "");
+      return `<tr><td class="z">${idx.zone_names[zi]}</td><td>${a}</td>` +
+             `<td>${(pct * 100).toFixed(1)}</td>` +
+             `<td class="${cls}">${rel == null ? "—" : (rel > 0 ? "+" : "") + rel.toFixed(1)}</td></tr>`;
+    }).join("");
+}
+
+// Court geometry and the heatmap itself live in js/court.js, so both views draw
+// the arc that was actually on the floor that season. Plotly is only needed
+// here, so court.js lazy-loads it (4.6MB) on first render.
+async function renderDensity(p, zoneGeom, att) {
+  const status = document.getElementById("density-status");
+  const el = document.getElementById("density-chart");
+  const note = document.getElementById("density-note");
+  document.getElementById("density-sub").textContent =
+    curPlayer ? `${att} attempts` : `${att} team attempts`;
+
+  const pi = curPlayer ? p.players.indexOf(curPlayer) : -1;
+  const { xs, ys } = Court.xyFor(p.shots, pi);
+  note.textContent = "";
+  if (!xs.length) { status.textContent = "No shots."; el.innerHTML = ""; return; }
+
+  status.textContent = "Loading chart…";
+  const ok = await Court.renderDensity(el, xs, ys, Court.geometry(p.arc_r, p.corner_x), 380);
+  if (!ok) { status.textContent = "Chart library failed to load."; return; }
+  status.textContent = "";
+
+  // Through 2010 the feed logged rim attempts at exactly (0,0) without capturing
+  // a location — 30% of all 1997 shots, falling to 18% by 2010, then zero from
+  // 2011. How often depends on the arena, so measure it per subject rather than
+  // caveating by season. Say so; otherwise the bullseye reads as shot selection.
+  const share = Court.sentinelShare(xs, ys);
+  if (share > 0.02) {
+    note.textContent =
+      `⚠ ${(share * 100).toFixed(1)}% of these attempts were recorded at the rim with no `
+      + `coordinate — the WNBA feed did not capture shot locations for rim attempts until 2011. `
+      + `They stack onto the single point under the basket.`;
+  }
+}
+
+function buildNote() {
+  document.getElementById("note").innerHTML =
+    "Colour is FG% relative to that <em>season's</em> league average in the same zone, so a " +
+    "zone reads hot or cold against the shots actually being taken that year. " +
+    "<strong>The three-point line moved twice</strong> — 19'9\" through 2003, 20'6.25\" from 2004, " +
+    "and 22'1.75\" from 2013 — so the arc drawn here changes with the season, and league " +
+    "baselines are computed within a season rather than pooled across eras. " +
+    "Shots beyond 40 feet are excluded as heaves. Zone names stay constant across eras, so " +
+    "the same zone can be compared from 1997 to today even though its boundary moved. " +
+    "A player needs at least 30 attempts for a precomputed chart; below that it is derived " +
+    "from her raw coordinates on the fly." +
+    "<br><br><strong>Density</strong> plots where shots were taken rather than how they went in. " +
+    "The colour ramp is clipped at the 98th percentile of occupied bins — without that clipping " +
+    "a single rim bin would saturate the scale and the rest of the court would read as empty floor.";
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>

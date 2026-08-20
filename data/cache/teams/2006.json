@@ -1,0 +1,114 @@
+{
+ "CHA": {
+  "abbr": "CHA",
+  "city": "Charlotte",
+  "conf": "East",
+  "id": 1611661314,
+  "name": "Charlotte Sting",
+  "slug": "charlotte-sting"
+ },
+ "CHI": {
+  "abbr": "CHI",
+  "city": "Chicago",
+  "conf": "East",
+  "id": 1611661329,
+  "name": "Chicago Sky",
+  "slug": "chicago-sky"
+ },
+ "CON": {
+  "abbr": "CON",
+  "city": "Connecticut",
+  "conf": "East",
+  "id": 1611661323,
+  "name": "Connecticut Sun",
+  "slug": "connecticut-sun"
+ },
+ "DET": {
+  "abbr": "DET",
+  "city": "Detroit",
+  "conf": "East",
+  "id": 1611661321,
+  "name": "Detroit Shock",
+  "slug": "detroit-shock"
+ },
+ "HOU": {
+  "abbr": "HOU",
+  "city": "Houston",
+  "conf": "West",
+  "id": 1611661316,
+  "name": "Houston Comets",
+  "slug": "houston-comets"
+ },
+ "IND": {
+  "abbr": "IND",
+  "city": "Indiana",
+  "conf": "East",
+  "id": 1611661325,
+  "name": "Indiana Fever",
+  "slug": "indiana-fever"
+ },
+ "LAS": {
+  "abbr": "LAS",
+  "city": "Los Angeles",
+  "conf": "West",
+  "id": 1611661320,
+  "name": "Los Angeles Sparks",
+  "slug": "los-angeles-sparks"
+ },
+ "MIN": {
+  "abbr": "MIN",
+  "city": "Minnesota",
+  "conf": "West",
+  "id": 1611661324,
+  "name": "Minnesota Lynx",
+  "slug": "minnesota-lynx"
+ },
+ "NYL": {
+  "abbr": "NYL",
+  "city": "New York",
+  "conf": "East",
+  "id": 1611661313,
+  "name": "New York Liberty",
+  "slug": "new-york-liberty"
+ },
+ "PHO": {
+  "abbr": "PHO",
+  "city": "Phoenix",
+  "conf": "West",
+  "id": 1611661317,
+  "name": "Phoenix Mercury",
+  "slug": "phoenix-mercury"
+ },
+ "SAC": {
+  "abbr": "SAC",
+  "city": "Sacramento",
+  "conf": "West",
+  "id": 1611661318,
+  "name": "Sacramento Monarchs",
+  "slug": "sacramento-monarchs"
+ },
+ "SAN": {
+  "abbr": "SAN",
+  "city": "San Antonio",
+  "conf": "West",
+  "id": 1611661319,
+  "name": "San Antonio Silver Stars",
+  "slug": "san-antonio-silver-stars"
+ },
+ "SEA": {
+  "abbr": "SEA",
+  "city": "Seattle",
+  "conf": "West",
+  "id": 1611661328,
+  "name": "Seattle Storm",
+  "slug": "seattle-storm"
+ },
+ "WAS": {
+  "abbr": "WAS",
+  "city": "Washington",
+  "conf": "East",
+  "id": 1611661322,
+  "name": "Washington Mystics",
+  "slug": "washington-mystics"
+ }
+}
