@@ -26,6 +26,7 @@ data/          pipeline — fetch, cache, derive, export
   nightly.py       the whole chain, in order
   health_check.py  refuses to publish a quietly broken build
   verify_*.py      derivation vs. the league's own numbers
+scripts/       nightly.sh + the LaunchAgent that runs it
 viz/           matplotlib court + shot chart rendering
 site/          the static site; site/data/ is generated
 ```
@@ -91,18 +92,28 @@ at a machine that can reach the API is a settings change rather than an edit:
 gh variable set NIGHTLY_RUNNER --body self-hosted
 ```
 
-The equivalent without a runner daemon is a local scheduled job:
+**What this repo actually runs** is the second one: a LaunchAgent on a Mac.
 
 ```bash
-python -m data.nightly --season "$(date +%Y)" \
-  && python -m data.health_check --season "$(date +%Y)" \
-  && git add -A && git commit -m "nightly $(date +%F)" && git push
+cp scripts/com.bradybrown.wnba-nightly.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$UID ~/Library/LaunchAgents/com.bradybrown.wnba-nightly.plist
+launchctl kickstart -p gui/$UID/com.bradybrown.wnba-nightly   # run it now
 ```
 
-Either way `pages.yml` sees the push and publishes. Left as-is, the nightly
-runs hosted and fails loudly at the fetch stage rather than publishing an
-empty build — which is what it did before `data/cache.py` grew retries and an
-unswallowable failure type.
+It fires at 06:00 CT (07:00 ET), May through October, and runs
+`scripts/nightly.sh`: build, verify, commit, push. `pages.yml` sees the push and
+publishes. Logs land in `~/Library/Logs/wnba-nightly.log`; a failure also raises
+a macOS notification, because a nightly that fails quietly is the thing this
+whole setup exists to avoid.
+
+> **The repo must not live under `~/Documents`.** macOS privacy protection
+> blocks background jobs from the Documents folder, and a LaunchAgent there
+> dies with exit 126 and `Operation not permitted` before running a line. It
+> lives in `~/projects/wnba` for that reason alone.
+
+Left unconfigured, `nightly.yml` runs hosted and fails loudly at the fetch stage
+rather than publishing an empty build — which is what it did before
+`data/cache.py` grew retries and an unswallowable failure type.
 
 Two things make this cheap enough to run unattended:
 
