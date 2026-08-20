@@ -439,6 +439,13 @@ def build_shots(season: str, scope: str = "reg") -> int:
         print(f"  [skip] shots ({scope}): no shot data for {season}")
         return 0
 
+    # The flat coordinate array below is written in row order, so the payload
+    # inherits whatever order the feed happened to return. That order is not
+    # stable between calls, which made two builds of identical data produce
+    # different JSON — the site's whole no-new-games-no-diff property depends on
+    # this being deterministic. (GAME_ID, GAME_EVENT_ID) identifies a shot.
+    df = df.sort_values(["GAME_ID", "GAME_EVENT_ID"]).reset_index(drop=True)
+
     geom = geometry_for_season(season)
     teams = season_team_map(season)
     by_id = {v["id"]: v for v in teams.values()}
@@ -453,8 +460,11 @@ def build_shots(season: str, scope: str = "reg") -> int:
         meta = by_id.get(int(tid))
         if not meta:
             continue
+        # GAME_ID breaks the tie: a team plays at most once a day, but sorting
+        # on date alone leaves same-date rows in feed order, which would permute
+        # every game index in the payload for no reason.
         games = (g[["GAME_ID", "GAME_DATE"]].drop_duplicates()
-                 .sort_values("GAME_DATE").reset_index(drop=True))
+                 .sort_values(["GAME_DATE", "GAME_ID"]).reset_index(drop=True))
         game_pos = {gid: i for i, gid in enumerate(games["GAME_ID"])}
         players = sorted(g["PLAYER_NAME"].dropna().unique().tolist())
         player_pos = {p: i for i, p in enumerate(players)}

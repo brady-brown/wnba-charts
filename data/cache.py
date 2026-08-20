@@ -280,9 +280,15 @@ def get_game_ids(
             ),
             what=f"game ids {season} {season_type}",
         )
+        # Sorted before caching because the endpoint does NOT return a stable
+        # order: two calls a minute apart give the same 268 games permuted.
+        # Unsorted, the cached CSV diffs every night with no new games, and the
+        # nightly's "no new data means no diff" property is lost on the very
+        # file the build stamp is read from.
         df = (
             finder.get_data_frames()[0][["GAME_ID", "GAME_DATE", "MATCHUP"]]
             .drop_duplicates("GAME_ID")
+            .sort_values("GAME_ID")
             .reset_index(drop=True)
         )
         save_to_cache(df, "game_ids", **kwargs)
