@@ -1,9 +1,13 @@
-# Diagnostic: what can a GitHub-hosted runner actually reach?
+# Diagnostic: can ANY GitHub-hosted runner reach the league's stats host?
 #
-# The nightly job's fetch stage times out against stats.nba.com on every
-# attempt, which looks like flakiness and behaves like a block. This probe
-# separates the two, and checks whether the CDN feeds — served from a normal
-# CDN rather than the stats host — answer where the stats host does not.
+# The nightly's fetch stage times out against stats.nba.com from ubuntu-latest.
+# GitHub's Linux runners are on Azure, and the stats hosts blackhole that range.
+# But the macOS and Windows fleets are not necessarily on the same network, so
+# "GitHub-hosted runners cannot reach it" is a claim about one fleet until it is
+# a claim about all of them.
+#
+# If any row below comes back 200 with JSON, the whole nightly can run there and
+# no machine of Brady's needs to be involved.
 #
 # Manual only. Delete once the answer stops changing.
 name: probe-api
@@ -13,37 +17,44 @@ on:
 
 jobs:
   probe:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Probe each host
+      - name: Probe stats hosts from ${{ matrix.runner }}
         run: |
+          echo "runner: ${{ matrix.runner }}"
+          echo "egress IP: $(curl -s --max-time 15 https://api.ipify.org || echo unavailable)"
+          echo
+
+          # nba_api's header set. stats.nba.com stalls rather than refusing when
+          # these are missing, so a probe without them cannot tell a block from a
+          # bad request.
           probe() {
-            printf '%-58s ' "$1"
-            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 25 \
-                     -H 'User-Agent: Mozilla/5.0' \
-                     -H 'Referer: https://www.wnba.com/' \
-                     -H 'Origin: https://www.wnba.com' \
+            printf '%-42s ' "$1"
+            code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 30 \
+                     -H 'Host: stats.nba.com' \
+                     -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36' \
+                     -H 'Accept: application/json, text/plain, */*' \
+                     -H 'Accept-Language: en-US,en;q=0.9' \
+                     -H 'Referer: https://www.nba.com/' \
+                     -H 'Origin: https://www.nba.com' \
+                     -H 'x-nba-stats-origin: stats' \
+                     -H 'x-nba-stats-token: true' \
+                     -H 'Connection: keep-alive' \
                      "$2" 2>/dev/null) || code="TIMEOUT/RESET"
-            echo "$code  ($(wc -c < /tmp/body) bytes)"
+            echo "$code  ($(wc -c < /tmp/body 2>/dev/null || echo 0) bytes)"
           }
 
-          probe "stats.nba.com  LeagueGameFinder (WNBA)" \
+          probe "stats.nba.com LeagueGameFinder(WNBA)" \
             "https://stats.nba.com/stats/leaguegamefinder?LeagueID=10&Season=2026&SeasonType=Regular+Season&PlayerOrTeam=T"
-          probe "stats.nba.com  scoreboardv2" \
-            "https://stats.nba.com/stats/scoreboardv2?GameDate=2026-08-19&LeagueID=10&DayOffset=0"
-          probe "stats.wnba.com scoreboardv2" \
-            "https://stats.wnba.com/stats/scoreboardv2?GameDate=2026-08-19&LeagueID=10&DayOffset=0"
-          probe "cdn.wnba.com   liveData scoreboard" \
-            "https://cdn.wnba.com/static/json/liveData/scoreboard/todaysScoreboard_10.json"
-          probe "cdn.wnba.com   liveData playbyplay" \
-            "https://cdn.wnba.com/static/json/liveData/playbyplay/playbyplay_1022600250.json"
-          probe "data.wnba.com  schedule" \
-            "https://data.wnba.com/data/10s/v2015/json/mobile_teams/wnba/2026/league/10_full_schedule.json"
-          probe "www.wnba.com   (control: is egress working at all)" \
-            "https://www.wnba.com/"
-
-          echo
-          echo "--- runner egress IP ---"
-          curl -s --max-time 15 https://api.ipify.org || echo "(unavailable)"
-          echo
+          probe "stats.nba.com playbyplayv2" \
+            "https://stats.nba.com/stats/playbyplayv2?GameID=1022600250&StartPeriod=1&EndPeriod=10"
+          probe "www.wnba.com (egress control)" \
+            "https://www.wnba.com/schedule"
