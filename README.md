@@ -61,7 +61,48 @@ anyway would fail its own staleness gate nightly until a red build stopped
 meaning anything. Off-season rebuilds go through `workflow_dispatch`.
 
 Each run refreshes the live season's stale cache, rebuilds the chain, verifies
-the output, commits whatever changed, and publishes `site/` to GitHub Pages.
+the output, and commits whatever changed. Publishing is a separate workflow
+(`pages.yml`) that fires on that push.
+
+### The fetch has to run somewhere the league answers
+
+**GitHub-hosted runners cannot reach the data.** Measured from an Azure runner
+IP by `.github/workflows/probe-api.yml`:
+
+| host | result |
+| --- | --- |
+| `stats.nba.com` LeagueGameFinder | timeout / reset |
+| `stats.wnba.com` scoreboardv2 | timeout / reset |
+| `cdn.wnba.com` liveData | HTTP 200 — body is a WAF error page |
+| `data.wnba.com` schedule | HTTP 403 |
+| `www.wnba.com` (egress control) | HTTP 200, 238 KB |
+
+Egress works; the stats hosts blackhole the range. This is not flakiness and
+retries do not help — the same chain finishes in about 50 seconds from a
+residential connection. There is no reachable fallback feed either: the CDN
+path answers 200 and returns an error page, which is worse than a refusal,
+because a naive client would cache it as data.
+
+So the split: **fetching runs where the league answers, publishing runs on
+GitHub.** `nightly.yml` reads its runner from a repo variable, so pointing it
+at a machine that can reach the API is a settings change rather than an edit:
+
+```bash
+gh variable set NIGHTLY_RUNNER --body self-hosted
+```
+
+The equivalent without a runner daemon is a local scheduled job:
+
+```bash
+python -m data.nightly --season "$(date +%Y)" \
+  && python -m data.health_check --season "$(date +%Y)" \
+  && git add -A && git commit -m "nightly $(date +%F)" && git push
+```
+
+Either way `pages.yml` sees the push and publishes. Left as-is, the nightly
+runs hosted and fails loudly at the fetch stage rather than publishing an
+empty build — which is what it did before `data/cache.py` grew retries and an
+unswallowable failure type.
 
 Two things make this cheap enough to run unattended:
 

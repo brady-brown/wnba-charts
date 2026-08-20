@@ -1,0 +1,43 @@
+# Publish site/ to GitHub Pages.
+#
+# Split out of nightly.yml on purpose. Publishing needs nothing from the league
+# API — it uploads JSON that is already in the repo — so it runs fine on a
+# GitHub-hosted runner even though the nightly's fetch stage cannot (see the
+# note in README: stats.nba.com blackholes Azure IP ranges, and GitHub-hosted
+# runners are on Azure).
+#
+# Keeping them apart means whichever machine ends up doing the fetching only
+# has to push a commit. Publishing follows from the push.
+name: pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

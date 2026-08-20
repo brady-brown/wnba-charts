@@ -2,8 +2,32 @@
 #
 # The chain itself lives in data/nightly.py, not here. A schedule that only
 # exists in YAML cannot be run locally, cannot be tested, and drifts from what
-# a person types by hand — so this file does CI things (cache, commit, deploy)
-# and delegates the basketball to a module that runs identically on a laptop.
+# a person types by hand — so this file does CI things (cache, commit) and
+# delegates the basketball to a module that runs identically on a laptop.
+#
+# ---------------------------------------------------------------------------
+# THIS NEEDS A RUNNER THAT CAN REACH stats.nba.com
+# ---------------------------------------------------------------------------
+# GitHub-hosted runners cannot. Measured, not assumed — .github/workflows/
+# probe-api.yml from an Azure runner IP:
+#
+#     stats.nba.com  LeagueGameFinder    TIMEOUT/RESET
+#     stats.wnba.com scoreboardv2        TIMEOUT/RESET
+#     cdn.wnba.com   liveData            200, but the body is a WAF error page
+#     www.wnba.com   (egress control)    200, 238 KB
+#
+# Egress works; the stats hosts blackhole the IP range. Retries cannot fix a
+# block, and there is no reachable fallback feed. The fetch has to originate
+# somewhere the league answers — a self-hosted runner, or any machine that runs
+# `python -m data.nightly` and pushes.
+#
+# `runs-on` reads the repo variable NIGHTLY_RUNNER so pointing this at such a
+# runner is a settings change, not an edit:
+#
+#     gh variable set NIGHTLY_RUNNER --body self-hosted
+#
+# Until that is set it runs hosted, where the fetch stage fails loudly rather
+# than publishing an empty build.
 name: nightly
 
 on:
@@ -34,10 +58,9 @@ on:
         default: false
         type: boolean
 
+# Publishing lives in pages.yml, which fires on the push this job makes.
 permissions:
   contents: write     # push the rebuilt JSON back
-  pages: write        # publish
-  id-token: write     # OIDC for the Pages deploy
 
 # Never let two nightlies race: they would fetch the same games, then fight
 # over the same commit.
@@ -47,7 +70,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.NIGHTLY_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 45
 
     steps:
@@ -112,23 +135,14 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/configure-pages@v5
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
-  # Deploys on every green run, including quiet ones. The artifact is already
-  # built by the time we get here, so re-publishing identical bytes costs
-  # seconds and guarantees the live site matches the repo — which a
-  # deploy-only-on-change rule cannot, since one failed deploy would otherwise
-  # leave the site behind forever.
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+      - name: Summary
+        run: |
+          {
+            echo "### Nightly — season ${{ steps.season.outputs.season }}"
+            echo
+            if [ "${{ steps.commit.outputs.changed }}" = "true" ]; then
+              echo "New data committed. pages.yml will publish it."
+            else
+              echo "No new games since the last run — byte-identical output, nothing to publish."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
