@@ -29,11 +29,11 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/bradybrown/Documents/projects/wnba/scripts/nightly.sh</string>
+    <string>/Users/bradybrown/projects/wnba/scripts/nightly.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/bradybrown/Documents/projects/wnba</string>
+  <string>/Users/bradybrown/projects/wnba</string>
 
   <key>StartCalendarInterval</key>
   <array>
