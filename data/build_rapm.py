@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from data.build_common import merge_rows
 from data.rapm import compute_rapm, find_best_alpha
 
 STINTS_DIR = Path("data/stints_out")
@@ -146,16 +147,20 @@ def main() -> None:
         res.insert(0, "SEASON", season)
         path = out_dir / f"rapm_{season}_{args.season_type.replace(' ', '_')}.csv"
         res.to_csv(path, index=False)
-        summary.append({"season": season, "players": len(res),
-                        "stints": len(stints), "alpha": alpha})
+        summary.append({"season": season, "season_type": args.season_type,
+                        "players": len(res), "stints": len(stints),
+                        "alpha": alpha})
         print(f"  -> {len(res)} players written to {path.name}\n")
 
     if not summary:
         print("nothing computed")
         return
 
-    s = pd.DataFrame(summary)
-    s.to_csv(out_dir / "rapm_summary.csv", index=False)
+    # Merged, not overwritten: a nightly builds one season but this table is
+    # what health_check reads to confirm every published season shares the ridge
+    # penalty. Overwritten, that check compared one row against itself.
+    s = merge_rows(out_dir / "rapm_summary.csv", pd.DataFrame(summary),
+                   key=["season", "season_type"])
 
     # Match rapm_{4-digit season}_{type}.csv and nothing else. The old glob was
     # rapm_*_*.csv minus "summary" and "alpha", which still matched

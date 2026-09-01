@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import argparse
 import time
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
 
+from data.build_common import merge_rows
 from data.cache import CACHE_DIR, _cache_key, get_game_ids, get_pbp
 from data.stints import _game_stints
 
@@ -111,6 +113,50 @@ def build_season(season: str, season_type: str) -> tuple[pd.DataFrame, dict]:
                 "stints": len(df), "names": names}
 
 
+def _fold(name: str) -> str:
+    """A name with its accents removed, for comparing two spellings of one."""
+    return "".join(c for c in unicodedata.normalize("NFKD", str(name))
+                   if not unicodedata.combining(c))
+
+
+def _prefer(old: str, new: str) -> str:
+    """
+    Which of two spellings of one player id to keep.
+
+    The feed is inconsistent about diacritics from season to season — the same
+    id is "Dorka Juhász" in one year and "Dorka Juhasz" in another — so plain
+    last-wins quietly strips the accents off a name because of which season
+    happened to be processed last. That is a loss of information nobody chose.
+
+    When two spellings differ ONLY by accents, keep the accented one. When they
+    differ for a real reason — Megan Gustafson married and the feed now says
+    Megan DiLeo — the newer one wins, which is the behaviour that was already
+    there and is a genuine editorial choice, not an accident.
+    """
+    if old == new:
+        return new
+    if _fold(old) == _fold(new):
+        return old if _fold(old) != old else new
+    return new
+
+
+def _merge_names(path: Path, fresh: dict[int, str]) -> dict[int, str]:
+    """Union of every player ever seen, across every season ever built."""
+    names: dict[int, str] = {}
+    if path.exists():
+        try:
+            prior = pd.read_csv(path)
+            names = dict(zip(prior["PERSON_ID"].astype(int), prior["PLAYER_NAME"]))
+        except Exception as e:
+            print(f"  [warn] {path.name} unreadable ({type(e).__name__}); "
+                  f"rewriting from this run only")
+    for pid, name in fresh.items():
+        names[pid] = _prefer(names[pid], name) if pid in names else name
+    pd.DataFrame([{"PERSON_ID": k, "PLAYER_NAME": v}
+                  for k, v in sorted(names.items())]).to_csv(path, index=False)
+    return names
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--season", action="append", dest="seasons",
@@ -164,7 +210,12 @@ def main() -> None:
                     home_lineup=df["home_lineup"].map(lambda s: sorted(s)),
                     away_lineup=df["away_lineup"].map(lambda s: sorted(s)),
                 ).to_parquet(path, index=False)
-            all_names.update(info.pop("names"))
+            # _prefer, not dict.update: plain last-wins here would collapse the
+            # two spellings before _merge_names ever sees them, so the accent
+            # rule below would have nothing left to choose between.
+            for pid, name in info.pop("names").items():
+                all_names[pid] = (_prefer(all_names[pid], name)
+                                  if pid in all_names else name)
             summary.append({"season": season, "season_type": season_type, **info})
             print(f"  {label}: {info['stints']:>6,} stints from "
                   f"{info['games_with_stints']}/{info['games']} games")
@@ -187,11 +238,20 @@ def main() -> None:
                 f"named explicitly, so an empty build is a failure, not a quiet night")
         return
 
-    s = pd.DataFrame(summary)
-    s.to_csv(out_dir / "build_summary.csv", index=False)
-    pd.DataFrame(
-        [{"PERSON_ID": k, "PLAYER_NAME": v} for k, v in sorted(all_names.items())]
-    ).to_csv(out_dir / "player_names.csv", index=False)
+    # ── League-wide tables ───────────────────────────────────────────────────
+    # These two describe every season, but a run may have built only one. Written
+    # plainly they were overwritten with whatever the run happened to cover, so a
+    # nightly `--season 2026` reduced the 1997-2026 name table to the 401 players
+    # who appeared in 2026 and the build summary to a single row. Nothing
+    # downstream noticed, because the historical RAPM CSVs already had their
+    # names baked in — until the day someone rebuilt a past season and got a
+    # table full of blanks.
+    #
+    # So: merge, never replace. Rows for what this run built win; rows for
+    # seasons it did not touch survive.
+    s = merge_rows(out_dir / "build_summary.csv", pd.DataFrame(summary),
+                   key=["season", "season_type"])
+    _merge_names(out_dir / "player_names.csv", all_names)
 
     print("\n" + "=" * 64)
     print("BUILD SUMMARY")

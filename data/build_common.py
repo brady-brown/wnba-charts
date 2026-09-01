@@ -345,3 +345,43 @@ def prune_stale(directory, keep: set[str]) -> int:
 # TEAM_CACHE_DIR  Path  data/cache/teams — cached per-season team maps.
 # SCOPES          dict  scope key -> (season_type list, filename suffix).
 # ONOFF_SCOPES    tuple scopes that ship raw stint data ("all" excluded).
+
+# ---------------------------------------------------------------------------
+# League-wide tables
+# ---------------------------------------------------------------------------
+def merge_rows(path: Path, fresh, key: list[str]):
+    """
+    Update a table that spans every season from a run that covered only some.
+
+    Written plainly, these files were overwritten with whatever the run happened
+    to build, so a nightly `--season 2026` cut the 1997-2026 build summary and
+    the RAPM summary down to a single row each. Nothing failed — the per-season
+    outputs were all still correct — which is exactly why it went unnoticed, and
+    why data/health_check.py's "alpha is the same across every season" check was
+    silently passing against one row.
+
+    Rows this run produced win; rows for seasons it did not touch survive.
+    """
+    import pandas as pd
+
+    fresh = fresh.copy()
+    for col in key:
+        fresh[col] = fresh[col].astype(str)
+
+    if path.exists():
+        try:
+            prior = pd.read_csv(path)
+            for col in key:
+                prior[col] = prior[col].astype(str)
+            merged = pd.concat([prior, fresh], ignore_index=True)
+            merged = merged.drop_duplicates(key, keep="last")
+        except Exception as e:
+            print(f"  [warn] {path.name} unreadable ({type(e).__name__}); "
+                  f"rewriting from this run only")
+            merged = fresh
+    else:
+        merged = fresh
+
+    merged = merged.sort_values(key).reset_index(drop=True)
+    merged.to_csv(path, index=False)
+    return merged
